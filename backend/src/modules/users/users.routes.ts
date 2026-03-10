@@ -1,0 +1,155 @@
+﻿import { Router } from "express";
+import { z } from "zod";
+import { prisma } from "../../db/prisma.js";
+import { authenticate, authorize } from "../../middleware/auth.js";
+import { validateBody, validateParams, validateQuery } from "../../middleware/validate.js";
+import { USER_ROLES } from "../../types/domain.js";
+import { asyncHandler } from "../../utils/asyncHandler.js";
+import { AppError } from "../../utils/appError.js";
+import { hashPassword } from "../../utils/password.js";
+
+const router = Router();
+
+const createUserSchema = z.object({
+  name: z.string().min(2),
+  username: z.string().min(3).max(40),
+  password: z.string().min(6).max(100),
+  role: z.enum(USER_ROLES),
+});
+
+const updateUserSchema = z.object({
+  name: z.string().min(2).optional(),
+  role: z.enum(USER_ROLES).optional(),
+  active: z.boolean().optional(),
+});
+
+const resetPasswordSchema = z.object({
+  password: z.string().min(6).max(100),
+});
+
+const idParamsSchema = z.object({
+  id: z.string().regex(/^\d+$/),
+});
+
+const listQuerySchema = z.object({
+  role: z.enum(USER_ROLES).optional(),
+  active: z.enum(["true", "false"]).optional(),
+});
+
+router.use(authenticate, authorize("ADMIN"));
+
+router.get(
+  "/",
+  validateQuery(listQuerySchema),
+  asyncHandler(async (req, res) => {
+    const { role, active } = req.query as z.infer<typeof listQuerySchema>;
+
+    const users = await prisma.user.findMany({
+      where: {
+        role,
+        active: active === undefined ? undefined : active === "true",
+      },
+      select: {
+        id: true,
+        name: true,
+        username: true,
+        role: true,
+        active: true,
+        forcePasswordChange: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+      orderBy: { createdAt: "desc" },
+    });
+
+    res.json({ data: users });
+  }),
+);
+
+router.post(
+  "/",
+  validateBody(createUserSchema),
+  asyncHandler(async (req, res) => {
+    const payload = req.body as z.infer<typeof createUserSchema>;
+    const { name, username, password, role } = payload;
+
+    const existing = await prisma.user.findUnique({ where: { username } });
+    if (existing) {
+      throw new AppError("Username already exists", 400);
+    }
+
+    const passwordHash = await hashPassword(password);
+
+    const user = await prisma.user.create({
+      data: { name, username, passwordHash, role, forcePasswordChange: false },
+      select: {
+        id: true,
+        name: true,
+        username: true,
+        role: true,
+        active: true,
+        forcePasswordChange: true,
+        createdAt: true,
+      },
+    });
+
+    res.status(201).json({ data: user });
+  }),
+);
+
+router.patch(
+  "/:id",
+  validateParams(idParamsSchema),
+  validateBody(updateUserSchema),
+  asyncHandler(async (req, res) => {
+    const { id } = req.params as z.infer<typeof idParamsSchema>;
+    const payload = req.body as z.infer<typeof updateUserSchema>;
+
+    const userId = Number(id);
+    const existing = await prisma.user.findUnique({ where: { id: userId } });
+    if (!existing) {
+      throw new AppError("User not found", 404);
+    }
+
+    const user = await prisma.user.update({
+      where: { id: userId },
+      data: payload,
+      select: {
+        id: true,
+        name: true,
+        username: true,
+        role: true,
+        active: true,
+        forcePasswordChange: true,
+        updatedAt: true,
+      },
+    });
+
+    res.json({ data: user });
+  }),
+);
+
+router.post(
+  "/:id/reset-password",
+  validateParams(idParamsSchema),
+  validateBody(resetPasswordSchema),
+  asyncHandler(async (req, res) => {
+    const { id } = req.params as z.infer<typeof idParamsSchema>;
+    const payload = req.body as z.infer<typeof resetPasswordSchema>;
+    const userId = Number(id);
+
+    const existing = await prisma.user.findUnique({ where: { id: userId } });
+    if (!existing) {
+      throw new AppError("User not found", 404);
+    }
+
+    await prisma.user.update({
+      where: { id: userId },
+      data: { passwordHash: await hashPassword(payload.password), forcePasswordChange: true },
+    });
+
+    res.json({ message: "Password reset successful. User must change password on next login." });
+  }),
+);
+
+export const usersRouter = router;

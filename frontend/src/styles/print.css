@@ -1,0 +1,236 @@
+.print-sheet-a4 {
+  width: 210mm;
+  min-height: 297mm;
+  margin: 0 auto;
+  background: #fff;
+}
+
+.prescription-sheet {
+  position: relative;
+  padding: 0;
+  border: 1px solid #d9e5f4;
+  overflow: hidden;
+}
+
+.prescription-header-band {
+  height: 74px;
+  background: linear-gradient(90deg, #dff0ff 0%, #e8f4ff 52%, #f3faff 100%);
+  border-bottom: 1px solid #c6def7;
+  border-bottom-left-radius: 28px;
+}
+
+.prescription-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 20px 8px 20px;
+}
+
+.prescription-header-left {
+  display: flex;
+  gap: 12px;
+}
+
+.prescription-logo-box {
+  width: 66px;
+  height: 66px;
+  border: 1px solid #b7d4f2;
+  background: #fff;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.prescription-logo {
+  width: 54px;
+  height: 54px;
+  object-fit: contain;
+}
+
+.prescription-hospital-name {
+  margin: 0;
+  font-size: 23px;
+  font-weight: 800;
+  color: #105f9b;
+  line-height: 1.15;
+}
+
+.prescription-hospital-meta {
+  margin: 2px 0;
+  font-size: 12px;
+  color: #335a7a;
+}
+
+.prescription-doctor-block {
+  min-width: 220px;
+  font-size: 12px;
+  color: #274b69;
+  text-align: right;
+  padding-top: 4px;
+}
+
+.prescription-doctor-name {
+  margin: 0 0 3px 0;
+  font-size: 16px;
+  font-weight: 700;
+  color: #0d4673;
+}
+
+.prescription-patient-grid {
+  margin: 6px 20px 0 20px;
+  padding: 12px;
+  border: 1px solid #c9dff5;
+  border-radius: 10px;
+  background: #fbfeff;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px 16px;
+}
+
+.line-field {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 24px;
+  font-size: 12px;
+  color: #244b68;
+}
+
+.line-field .label {
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.line-field .line-fill {
+  display: inline-block;
+  flex: 1;
+  min-width: 30px;
+  min-height: 18px;
+  border-bottom: 1px solid #89b5df;
+  color: #0f3f67;
+  font-weight: 500;
+}
+
+.line-field .suffix {
+  white-space: nowrap;
+  font-size: 11px;
+  color: #486f8f;
+}
+
+.prescription-writing-area {
+  margin: 12px 20px 0 20px;
+  min-height: 560px;
+  border: 1px solid #c9dff5;
+  border-radius: 10px;
+  background: #fff;
+  padding: 12px;
+}
+
+.rx-mark {
+  margin: 0;
+  font-size: 28px;
+  line-height: 1;
+  font-weight: 800;
+  color: #14588e;
+}
+
+.writing-lines {
+  height: 420px;
+  margin-top: 4px;
+  background-image: linear-gradient(to bottom, transparent 23px, #edf4fc 24px);
+  background-size: 100% 24px;
+}
+
+.prescription-subsections {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+.sub-head {
+  margin: 0 0 4px 0;
+  font-size: 12px;
+  font-weight: 700;
+  color: #275475;
+}
+
+.sub-lines {
+  height: 56px;
+  background-image: linear-gradient(to bottom, transparent 18px, #edf4fc 19px);
+  background-size: 100% 19px;
+}
+
+.prescription-footer-row {
+  margin: 12px 20px 14px 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+}
+
+.visit-meta {
+  font-size: 11px;
+  color: #456685;
+  margin: 0;
+}
+
+.doctor-sign-box {
+  text-align: center;
+  min-width: 180px;
+  font-size: 11px;
+  color: #3d5f7d;
+}
+
+.sign-line {
+  width: 180px;
+  border-bottom: 1px solid #7ba7cf;
+  margin-bottom: 4px;
+}
+
+.print-sheet-thermal {
+  width: 80mm;
+  margin: 0 auto;
+  background: #fff;
+}
+
+@page {
+  margin: 8mm;
+  size: A4;
+}
+
+@media print {
+  .print-controls {
+    display: none !important;
+  }
+
+  .print-sheet-a4 {
+    width: auto;
+    min-height: auto;
+    box-shadow: none;
+    border: none;
+  }
+
+  .prescription-print-shell {
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+}
+
+@media print {
+  body[data-print-format="thermal"] .print-sheet-thermal {
+    width: 80mm;
+  }
+
+  body[data-print-format="thermal"] {
+    font-size: 11px;
+  }
+
+  body[data-print-format="thermal"] .print-sheet-a4 {
+    display: none;
+  }
+
+  body[data-print-format="a4"] .print-sheet-thermal {
+    display: none;
+  }
+}

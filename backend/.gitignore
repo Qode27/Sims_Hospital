@@ -1,0 +1,14 @@
+﻿# Node
+node_modules/
+dist/
+
+# Env
+.env
+
+# Prisma SQLite
+prisma/*.db
+prisma/*.db-journal
+
+# Uploads
+uploads/*
+!uploads/.gitkeep

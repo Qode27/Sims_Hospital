@@ -1,0 +1,276 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  ADMIN
+  RECEPTION
+  DOCTOR
+}
+
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+}
+
+enum VisitType {
+  OPD
+  IPD
+}
+
+enum VisitStatus {
+  SCHEDULED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum PaymentMode {
+  CASH
+  UPI
+  CARD
+}
+
+enum InvoiceItemCategory {
+  CONSULTATION
+  LAB
+  PROCEDURE
+  MEDICINE
+  MISC
+}
+
+enum IPDAdmissionStatus {
+  ADMITTED
+  DISCHARGED
+}
+
+model User {
+  id                  Int              @id @default(autoincrement())
+  name                String
+  username            String           @unique
+  passwordHash        String
+  role                UserRole
+  active              Boolean          @default(true)
+  forcePasswordChange Boolean   @default(false)
+  createdAt           DateTime         @default(now())
+  updatedAt           DateTime         @updatedAt
+  createdPatients     Patient[]        @relation("PatientCreatedBy")
+  doctorVisits        Visit[]          @relation("VisitDoctor")
+  createdVisits       Visit[]          @relation("VisitCreatedBy")
+  notes               Note[]
+  prescriptions       Prescription[]
+  createdInvoices     Invoice[]        @relation("InvoiceCreatedBy")
+  doctorProfile       DoctorProfile?
+  attendingAdmissions IPDAdmission[]   @relation("IPDAttendingDoctor")
+  createdAdmissions   IPDAdmission[]   @relation("IPDCreatedBy")
+  dischargedAdmissions IPDAdmission[]  @relation("IPDDischargedBy")
+  createdTransfers    OpdToIpdTransfer[] @relation("IPDTransferredBy")
+}
+
+model Patient {
+  id            Int       @id @default(autoincrement())
+  mrn           String    @unique
+  name          String
+  dob           DateTime?
+  age           Int?
+  gender        Gender
+  phone         String
+  address       String
+  idProof       String?
+  active        Boolean   @default(true)
+  createdById   Int?
+  createdBy     User?     @relation("PatientCreatedBy", fields: [createdById], references: [id])
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  visits        Visit[]
+  prescriptions Prescription[]
+  ipdAdmissions IPDAdmission[]
+  opdIpdTransfers OpdToIpdTransfer[]
+
+  @@index([name])
+  @@index([phone])
+}
+
+model Visit {
+  id               Int           @id @default(autoincrement())
+  patientId        Int
+  doctorId         Int
+  createdById      Int?
+  type             VisitType     @default(OPD)
+  status           VisitStatus   @default(SCHEDULED)
+  consultationFee  Float         @default(0)
+  reason           String?
+  scheduledAt      DateTime      @default(now())
+  completedAt      DateTime?
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+  patient          Patient       @relation(fields: [patientId], references: [id])
+  doctor           User          @relation("VisitDoctor", fields: [doctorId], references: [id])
+  createdBy        User?         @relation("VisitCreatedBy", fields: [createdById], references: [id])
+  notes            Note[]
+  prescription     Prescription?
+  invoice          Invoice?
+  ipdAdmission     IPDAdmission?
+  opdToIpdTransfer OpdToIpdTransfer? @relation("OpdVisitTransfer")
+
+  @@index([patientId])
+  @@index([doctorId])
+  @@index([scheduledAt])
+}
+
+model Note {
+  id         Int      @id @default(autoincrement())
+  visitId    Int
+  doctorId   Int
+  text       String
+  createdAt  DateTime @default(now())
+  visit      Visit    @relation(fields: [visitId], references: [id])
+  doctor     User     @relation(fields: [doctorId], references: [id])
+
+  @@index([visitId])
+}
+
+model Prescription {
+  id         Int      @id @default(autoincrement())
+  visitId    Int      @unique
+  patientId  Int?
+  doctorId   Int
+  invoiceId  Int?     @unique
+  printedAt  DateTime?
+  templateType String @default("OP_CASE_SHEET")
+  notes      String?
+  symptoms   String?
+  diagnosis  String?
+  advice     String?
+  itemsJson  String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  visit      Visit    @relation(fields: [visitId], references: [id])
+  patient    Patient? @relation(fields: [patientId], references: [id])
+  doctor     User     @relation(fields: [doctorId], references: [id])
+  invoice    Invoice? @relation(fields: [invoiceId], references: [id])
+
+  @@index([patientId])
+  @@index([invoiceId])
+}
+
+model Invoice {
+  id            Int            @id @default(autoincrement())
+  visitId        Int            @unique
+  invoiceNo      String         @unique
+  subtotal       Float
+  discount       Float          @default(0)
+  tax            Float          @default(0)
+  total          Float
+  paidAmount     Float
+  dueAmount      Float
+  paymentMode    PaymentMode
+  notes          String?
+  createdById    Int?
+  createdBy      User?          @relation("InvoiceCreatedBy", fields: [createdById], references: [id])
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+  visit          Visit          @relation(fields: [visitId], references: [id])
+  items          InvoiceItem[]
+  prescription   Prescription?
+
+  @@index([createdAt])
+}
+
+model InvoiceItem {
+  id         Int                 @id @default(autoincrement())
+  invoiceId  Int
+  category   InvoiceItemCategory @default(MISC)
+  name       String
+  qty        Float
+  unitPrice  Float
+  discount   Float               @default(0)
+  tax        Float               @default(0)
+  amount     Float
+  invoice    Invoice             @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@index([invoiceId])
+}
+
+model HospitalSettings {
+  id                   Int      @id @default(1)
+  hospitalName         String
+  address              String
+  phone                String
+  gstin                String?
+  logoPath             String?
+  defaultConsultationFee Float  @default(500)
+  invoicePrefix        String   @default("SIMS")
+  invoiceSequence      Int      @default(1)
+  footerNote           String?
+  kansaltLogoPath      String?
+  updatedAt            DateTime @updatedAt
+}
+
+model DoctorProfile {
+  id                 Int      @id @default(autoincrement())
+  userId             Int      @unique
+  qualification      String
+  specialization     String
+  registrationNumber String?
+  phone              String?
+  email              String?
+  signaturePath      String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model IPDAdmission {
+  id                Int                @id @default(autoincrement())
+  visitId           Int                @unique
+  patientId         Int
+  attendingDoctorId Int
+  status            IPDAdmissionStatus @default(ADMITTED)
+  admittedAt        DateTime           @default(now())
+  dischargedAt      DateTime?
+  ward              String
+  room              String
+  bed               String
+  diagnosis         String?
+  reason            String?
+  createdById       Int?
+  dischargedById    Int?
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  visit             Visit              @relation(fields: [visitId], references: [id], onDelete: Cascade)
+  patient           Patient            @relation(fields: [patientId], references: [id])
+  attendingDoctor   User               @relation("IPDAttendingDoctor", fields: [attendingDoctorId], references: [id])
+  createdBy         User?              @relation("IPDCreatedBy", fields: [createdById], references: [id])
+  dischargedBy      User?              @relation("IPDDischargedBy", fields: [dischargedById], references: [id])
+  transfer          OpdToIpdTransfer?
+
+  @@index([patientId])
+  @@index([attendingDoctorId])
+  @@index([status])
+  @@index([admittedAt])
+}
+
+model OpdToIpdTransfer {
+  id             Int          @id @default(autoincrement())
+  opdVisitId     Int          @unique
+  ipdAdmissionId Int          @unique
+  patientId      Int
+  transferredById Int
+  notes          String?
+  createdAt      DateTime     @default(now())
+  opdVisit       Visit        @relation("OpdVisitTransfer", fields: [opdVisitId], references: [id], onDelete: Cascade)
+  ipdAdmission   IPDAdmission @relation(fields: [ipdAdmissionId], references: [id], onDelete: Cascade)
+  patient        Patient      @relation(fields: [patientId], references: [id])
+  transferredBy  User         @relation("IPDTransferredBy", fields: [transferredById], references: [id])
+
+  @@index([patientId])
+  @@index([transferredById])
+  @@index([createdAt])
+}

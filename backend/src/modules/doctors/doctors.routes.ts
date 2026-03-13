@@ -1,4 +1,5 @@
 import fs from "node:fs";
+import path from "node:path";
 import { Router } from "express";
 import multer from "multer";
 import { z } from "zod";
@@ -12,19 +13,29 @@ import { hashPassword } from "../../utils/password.js";
 
 const router = Router();
 
-fs.mkdirSync(env.uploadDirPath, { recursive: true });
+const signatureUploadDir = path.join(env.uploadDirPath, "signatures");
+fs.mkdirSync(signatureUploadDir, { recursive: true });
 
-const storage = multer.diskStorage({
-  destination: (_req, _file, cb) => cb(null, env.uploadDirPath),
-  filename: (_req, file, cb) => {
-    const ext = file.originalname.includes(".") ? file.originalname.slice(file.originalname.lastIndexOf(".")) : ".png";
-    cb(null, `doctor-signature-${Date.now()}${ext}`);
+const allowedSignatureMimeTypes = new Set(["image/png", "image/jpeg", "image/jpg"]);
+
+const signatureUpload = multer({
+  storage: multer.diskStorage({
+    destination: (_req, _file, cb) => cb(null, signatureUploadDir),
+    filename: (_req, file, cb) => {
+      const extension = file.originalname.includes(".")
+        ? file.originalname.slice(file.originalname.lastIndexOf(".")).toLowerCase()
+        : ".png";
+      cb(null, `doctor-signature-${Date.now()}${extension}`.replace(/\s+/g, "-"));
+    },
+  }),
+  limits: { fileSize: 2 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    if (!allowedSignatureMimeTypes.has(file.mimetype)) {
+      cb(new AppError("Only PNG, JPG and JPEG files are supported", 400, "INVALID_SIGNATURE_FILE"));
+      return;
+    }
+    cb(null, true);
   },
-});
-
-const upload = multer({
-  storage,
-  limits: { fileSize: 3 * 1024 * 1024 },
 });
 
 const createDoctorSchema = z.object({
@@ -100,10 +111,10 @@ router.post(
 
     const existing = await prisma.user.findUnique({ where: { username: payload.username } });
     if (existing) {
-      throw new AppError("Username already exists", 400);
+      throw new AppError("Username already exists", 400, "DUPLICATE_USERNAME");
     }
 
-    const created = await prisma.$transaction(async (tx: any) => {
+    const created = await prisma.$transaction(async (tx) => {
       const user = await tx.user.create({
         data: {
           name: payload.fullName,
@@ -152,17 +163,17 @@ router.patch(
     });
 
     if (!existing) {
-      throw new AppError("Doctor not found", 404);
+      throw new AppError("Doctor not found", 404, "DOCTOR_NOT_FOUND");
     }
 
     if (payload.username && payload.username !== existing.username) {
       const usernameConflict = await prisma.user.findUnique({ where: { username: payload.username } });
       if (usernameConflict) {
-        throw new AppError("Username already exists", 400);
+        throw new AppError("Username already exists", 400, "DUPLICATE_USERNAME");
       }
     }
 
-    const updated = await prisma.$transaction(async (tx: any) => {
+    const updated = await prisma.$transaction(async (tx) => {
       await tx.user.update({
         where: { id: userId },
         data: {
@@ -208,7 +219,7 @@ router.post(
   "/:id/signature",
   authorize("ADMIN"),
   validateParams(idParamsSchema),
-  upload.single("signature"),
+  signatureUpload.single("signature"),
   asyncHandler(async (req, res) => {
     const { id } = req.params as z.infer<typeof idParamsSchema>;
     const userId = Number(id);
@@ -219,14 +230,14 @@ router.post(
     });
 
     if (!doctor) {
-      throw new AppError("Doctor not found", 404);
+      throw new AppError("Doctor not found", 404, "DOCTOR_NOT_FOUND");
     }
 
     if (!req.file) {
-      throw new AppError("Signature file is required", 400);
+      throw new AppError("Signature file is required", 400, "SIGNATURE_REQUIRED");
     }
 
-    const signaturePath = `/${env.uploadUrlPath}/${req.file.filename}`.replace(/\\/g, "/");
+    const signaturePath = `/${env.uploadUrlPath}/signatures/${req.file.filename}`.replace(/\\/g, "/");
 
     if (doctor.doctorProfile) {
       await prisma.doctorProfile.update({

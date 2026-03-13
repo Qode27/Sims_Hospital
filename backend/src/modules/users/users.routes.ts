@@ -1,8 +1,9 @@
-﻿import { Router } from "express";
+import { Router } from "express";
 import { z } from "zod";
 import { prisma } from "../../db/prisma.js";
-import { authenticate, authorize } from "../../middleware/auth.js";
+import { authenticate, authorize, type AuthenticatedRequest } from "../../middleware/auth.js";
 import { validateBody, validateParams, validateQuery } from "../../middleware/validate.js";
+import { writeAuditLog } from "../../services/audit.service.js";
 import { USER_ROLES } from "../../types/domain.js";
 import { asyncHandler } from "../../utils/asyncHandler.js";
 import { AppError } from "../../utils/appError.js";
@@ -13,7 +14,7 @@ const router = Router();
 const createUserSchema = z.object({
   name: z.string().min(2),
   username: z.string().min(3).max(40),
-  password: z.string().min(6).max(100),
+  password: z.string().min(10).max(100),
   role: z.enum(USER_ROLES),
 });
 
@@ -24,7 +25,7 @@ const updateUserSchema = z.object({
 });
 
 const resetPasswordSchema = z.object({
-  password: z.string().min(6).max(100),
+  password: z.string().min(10).max(100),
 });
 
 const idParamsSchema = z.object({
@@ -69,7 +70,7 @@ router.get(
 router.post(
   "/",
   validateBody(createUserSchema),
-  asyncHandler(async (req, res) => {
+  asyncHandler(async (req: AuthenticatedRequest, res) => {
     const payload = req.body as z.infer<typeof createUserSchema>;
     const { name, username, password, role } = payload;
 
@@ -93,6 +94,15 @@ router.post(
       },
     });
 
+    await writeAuditLog({
+      actorId: req.user?.id,
+      action: "user.create",
+      entityType: "user",
+      entityId: user.id,
+      description: `Created ${role} user ${username}`,
+      request: req,
+    });
+
     res.status(201).json({ data: user });
   }),
 );
@@ -101,7 +111,7 @@ router.patch(
   "/:id",
   validateParams(idParamsSchema),
   validateBody(updateUserSchema),
-  asyncHandler(async (req, res) => {
+  asyncHandler(async (req: AuthenticatedRequest, res) => {
     const { id } = req.params as z.infer<typeof idParamsSchema>;
     const payload = req.body as z.infer<typeof updateUserSchema>;
 
@@ -125,6 +135,15 @@ router.patch(
       },
     });
 
+    await writeAuditLog({
+      actorId: req.user?.id,
+      action: "user.update",
+      entityType: "user",
+      entityId: user.id,
+      description: `Updated ${user.username}`,
+      request: req,
+    });
+
     res.json({ data: user });
   }),
 );
@@ -133,7 +152,7 @@ router.post(
   "/:id/reset-password",
   validateParams(idParamsSchema),
   validateBody(resetPasswordSchema),
-  asyncHandler(async (req, res) => {
+  asyncHandler(async (req: AuthenticatedRequest, res) => {
     const { id } = req.params as z.infer<typeof idParamsSchema>;
     const payload = req.body as z.infer<typeof resetPasswordSchema>;
     const userId = Number(id);
@@ -146,6 +165,15 @@ router.post(
     await prisma.user.update({
       where: { id: userId },
       data: { passwordHash: await hashPassword(payload.password), forcePasswordChange: true },
+    });
+
+    await writeAuditLog({
+      actorId: req.user?.id,
+      action: "user.reset-password",
+      entityType: "user",
+      entityId: userId,
+      description: `Reset password for ${existing.username}`,
+      request: req,
     });
 
     res.json({ message: "Password reset successful. User must change password on next login." });

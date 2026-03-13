@@ -1,25 +1,63 @@
-﻿import type { NextFunction, Request, Response } from "express";
+import type { NextFunction, Request, Response } from "express";
+import multer from "multer";
+import { env } from "../config/env.js";
 import { AppError } from "../utils/appError.js";
+import { logError, requestLogContext } from "../utils/logger.js";
 
-export const notFoundHandler = (_req: Request, res: Response) => {
-  res.status(404).json({ message: "Route not found" });
+const sendError = (res: Response, statusCode: number, message: string, code: string) =>
+  res.status(statusCode).json({
+    error: true,
+    message,
+    code,
+  });
+
+export const notFoundHandler = (req: Request, res: Response) => {
+  sendError(res, 404, "Route not found", "ROUTE_NOT_FOUND");
 };
 
 export const errorHandler = (
   error: unknown,
-  _req: Request,
+  req: Request,
   res: Response,
   _next: NextFunction,
 ) => {
   if (error instanceof AppError) {
-    return res.status(error.statusCode).json({ message: error.message });
+    logError(error.message, {
+      ...requestLogContext(req),
+      code: error.code,
+      statusCode: error.statusCode,
+    });
+    return sendError(res, error.statusCode, error.message, error.code);
+  }
+
+  if (error instanceof multer.MulterError) {
+    const message = error.code === "LIMIT_FILE_SIZE" ? "Image size must be 3 MB or less" : error.message;
+    logError(message, {
+      ...requestLogContext(req),
+      code: error.code,
+      statusCode: 400,
+    });
+    return sendError(res, 400, message, "UPLOAD_ERROR");
   }
 
   if (error instanceof Error) {
-    console.error(error);
-    return res.status(500).json({ message: error.message });
+    logError(error.message, {
+      ...requestLogContext(req),
+      stack: env.nodeEnv === "development" ? error.stack : undefined,
+      statusCode: 500,
+    });
+    return sendError(
+      res,
+      500,
+      env.nodeEnv === "development" ? error.message : "Something went wrong. Please try again shortly.",
+      "INTERNAL_SERVER_ERROR",
+    );
   }
 
-  console.error(error);
-  return res.status(500).json({ message: "Internal server error" });
+  logError("Unknown error", {
+    ...requestLogContext(req),
+    payload: String(error),
+    statusCode: 500,
+  });
+  return sendError(res, 500, "Internal server error", "INTERNAL_SERVER_ERROR");
 };

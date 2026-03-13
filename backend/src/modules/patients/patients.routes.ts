@@ -1,4 +1,4 @@
-﻿import { Router } from "express";
+import { Router } from "express";
 import { z } from "zod";
 import { prisma } from "../../db/prisma.js";
 import { authenticate, authorize, type AuthenticatedRequest } from "../../middleware/auth.js";
@@ -31,6 +31,52 @@ const listQuerySchema = z.object({
 const idParamsSchema = z.object({
   id: z.string().regex(/^\d+$/),
 });
+
+const normalizeName = (value: string) =>
+  value
+    .trim()
+    .replace(/\s+/g, " ")
+    .toLowerCase();
+
+const normalizePhone = (value: string) => value.replace(/\D/g, "");
+
+const findDuplicatePatient = async (
+  payload: z.infer<typeof patientSchema>,
+  excludeId?: number,
+) => {
+  const normalizedName = normalizeName(payload.name);
+  const normalizedPhone = normalizePhone(payload.phone);
+
+  const candidates = await prisma.patient.findMany({
+    where: {
+      id: excludeId ? { not: excludeId } : undefined,
+      active: true,
+      OR: [
+        { phone: { contains: normalizedPhone.slice(-10) } },
+        { name: { contains: payload.name.trim() } },
+      ],
+    },
+    select: {
+      id: true,
+      name: true,
+      phone: true,
+      dob: true,
+      age: true,
+      gender: true,
+    },
+    take: 10,
+  });
+
+  return candidates.find((candidate) => {
+    const samePhone = normalizePhone(candidate.phone) === normalizedPhone;
+    const sameName = normalizeName(candidate.name) === normalizedName;
+    const sameGender = candidate.gender === payload.gender;
+    const sameAge =
+      payload.age === undefined || payload.age === null || candidate.age === null ? true : candidate.age === payload.age;
+
+    return samePhone && sameName && sameGender && sameAge;
+  });
+};
 
 router.use(authenticate);
 
@@ -142,7 +188,7 @@ router.get(
     });
 
     if (!patient) {
-      throw new AppError("Patient not found", 404);
+      throw new AppError("Patient not found", 404, "PATIENT_NOT_FOUND");
     }
 
     res.json({ data: patient });
@@ -155,17 +201,21 @@ router.post(
   validateBody(patientSchema),
   asyncHandler(async (req: AuthenticatedRequest, res) => {
     const payload = req.body as z.infer<typeof patientSchema>;
+    const duplicate = await findDuplicatePatient(payload);
+    if (duplicate) {
+      throw new AppError("A matching patient record already exists", 409, "DUPLICATE_PATIENT");
+    }
 
     const patient = await prisma.patient.create({
       data: {
         mrn: generateMrn(),
-        name: payload.name,
+        name: payload.name.trim().replace(/\s+/g, " "),
         dob: payload.dob ? new Date(payload.dob) : null,
         age: payload.age ?? null,
         gender: payload.gender,
-        phone: payload.phone,
-        address: payload.address,
-        idProof: payload.idProof ?? null,
+        phone: normalizePhone(payload.phone),
+        address: payload.address.trim(),
+        idProof: payload.idProof?.trim() ?? null,
         createdById: req.user?.id,
       },
     });
@@ -182,22 +232,28 @@ router.put(
   asyncHandler(async (req, res) => {
     const { id } = req.params as z.infer<typeof idParamsSchema>;
     const payload = req.body as z.infer<typeof patientSchema>;
+    const patientId = Number(id);
 
-    const existing = await prisma.patient.findUnique({ where: { id: Number(id) } });
+    const existing = await prisma.patient.findUnique({ where: { id: patientId } });
     if (!existing) {
-      throw new AppError("Patient not found", 404);
+      throw new AppError("Patient not found", 404, "PATIENT_NOT_FOUND");
+    }
+
+    const duplicate = await findDuplicatePatient(payload, patientId);
+    if (duplicate) {
+      throw new AppError("A matching patient record already exists", 409, "DUPLICATE_PATIENT");
     }
 
     const patient = await prisma.patient.update({
-      where: { id: Number(id) },
+      where: { id: patientId },
       data: {
-        name: payload.name,
+        name: payload.name.trim().replace(/\s+/g, " "),
         dob: payload.dob ? new Date(payload.dob) : null,
         age: payload.age ?? null,
         gender: payload.gender,
-        phone: payload.phone,
-        address: payload.address,
-        idProof: payload.idProof ?? null,
+        phone: normalizePhone(payload.phone),
+        address: payload.address.trim(),
+        idProof: payload.idProof?.trim() ?? null,
       },
     });
 
@@ -214,7 +270,7 @@ router.delete(
 
     const existing = await prisma.patient.findUnique({ where: { id: Number(id) } });
     if (!existing) {
-      throw new AppError("Patient not found", 404);
+      throw new AppError("Patient not found", 404, "PATIENT_NOT_FOUND");
     }
 
     const patient = await prisma.patient.update({

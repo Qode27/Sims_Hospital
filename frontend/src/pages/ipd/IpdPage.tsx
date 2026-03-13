@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
 import { getErrorMessage } from "../../api/client";
-import { doctorApi, ipdApi, patientApi } from "../../api/services";
+import { doctorApi, ipdApi, patientApi, roomApi } from "../../api/services";
 import { Badge } from "../../components/ui/Badge";
 import { Button } from "../../components/ui/Button";
 import { Card } from "../../components/ui/Card";
@@ -9,6 +9,7 @@ import { EmptyState } from "../../components/ui/EmptyState";
 import { Input } from "../../components/ui/Input";
 import { Loader } from "../../components/ui/Loader";
 import { Select } from "../../components/ui/Select";
+import type { Room } from "../../types";
 import { formatDateTime } from "../../utils/format";
 
 export const IpdPage = () => {
@@ -17,11 +18,14 @@ export const IpdPage = () => {
   const [rows, setRows] = useState<any[]>([]);
   const [patients, setPatients] = useState<any[]>([]);
   const [doctors, setDoctors] = useState<any[]>([]);
+  const [rooms, setRooms] = useState<Room[]>([]);
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [form, setForm] = useState({
     patientId: "",
     attendingDoctorId: "",
+    roomId: "",
+    bedId: "",
     ward: "General",
     room: "101",
     bed: "A",
@@ -31,18 +35,25 @@ export const IpdPage = () => {
   });
 
   const today = useMemo(() => new Date().toISOString().slice(0, 10), []);
+  const selectedRoom = useMemo(() => rooms.find((room) => String(room.id) === form.roomId), [rooms, form.roomId]);
+  const availableBeds = useMemo(
+    () => (selectedRoom?.beds ?? []).filter((bed) => bed.status === "AVAILABLE" || bed.status === "RESERVED"),
+    [selectedRoom],
+  );
 
   const load = async () => {
     setLoading(true);
     try {
-      const [ipdRes, patientRes, doctorRes] = await Promise.all([
+      const [ipdRes, patientRes, doctorRes, roomRes] = await Promise.all([
         ipdApi.list({ q: query, status: statusFilter || undefined, date: today, page: 1, pageSize: 40 }),
         patientApi.list({ page: 1, pageSize: 200, q: "" }),
         doctorApi.list({ active: true }),
+        roomApi.list(),
       ]);
       setRows(ipdRes.data.data);
       setPatients(patientRes.data.data);
       setDoctors(doctorRes.data.data);
+      setRooms(roomRes.data.data);
     } catch (error) {
       toast.error(getErrorMessage(error));
     } finally {
@@ -54,16 +65,29 @@ export const IpdPage = () => {
     load();
   }, []);
 
+  useEffect(() => {
+    if (!selectedRoom) return;
+    setForm((prev) => ({
+      ...prev,
+      ward: selectedRoom.ward,
+      room: selectedRoom.name,
+      bed: availableBeds.find((bed) => String(bed.id) === prev.bedId)?.bedNumber ?? prev.bed,
+    }));
+  }, [selectedRoom, availableBeds]);
+
   const createAdmission = async (event: React.FormEvent) => {
     event.preventDefault();
     setSaving(true);
     try {
+      const selectedBed = availableBeds.find((bed) => String(bed.id) === form.bedId);
       await ipdApi.create({
         patientId: Number(form.patientId),
         attendingDoctorId: Number(form.attendingDoctorId),
+        roomId: form.roomId ? Number(form.roomId) : undefined,
+        bedId: form.bedId ? Number(form.bedId) : undefined,
         ward: form.ward,
         room: form.room,
-        bed: form.bed,
+        bed: selectedBed?.bedNumber ?? form.bed,
         diagnosis: form.diagnosis || undefined,
         reason: form.reason || undefined,
         admittedAt: form.admittedAt ? new Date(form.admittedAt).toISOString() : undefined,
@@ -93,10 +117,10 @@ export const IpdPage = () => {
     <div className="space-y-5">
       <div>
         <h1 className="text-2xl font-semibold">IPD Admissions</h1>
-        <p className="text-sm text-slate-500">Manage inpatient admissions, bed allocation, and discharge workflow.</p>
+        <p className="text-sm text-slate-500">Manage inpatient admissions, assign real beds, and complete discharge workflow without oversubscribing inventory.</p>
       </div>
 
-      <Card>
+      <Card className="rounded-[28px]">
         <h2 className="mb-4 text-lg font-semibold">New IPD Admission</h2>
         <form onSubmit={createAdmission} className="grid gap-3 md:grid-cols-3">
           <Select label="Patient" value={form.patientId} onChange={(e) => setForm((p) => ({ ...p, patientId: e.target.value }))} required>
@@ -108,9 +132,17 @@ export const IpdPage = () => {
             {doctors.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
           </Select>
           <Input label="Admitted At" type="datetime-local" value={form.admittedAt} onChange={(e) => setForm((p) => ({ ...p, admittedAt: e.target.value }))} />
+          <Select label="Room" value={form.roomId} onChange={(e) => setForm((p) => ({ ...p, roomId: e.target.value, bedId: "" }))}>
+            <option value="">Select room</option>
+            {rooms.map((room) => <option key={room.id} value={room.id}>{room.ward} / {room.name}</option>)}
+          </Select>
+          <Select label="Bed" value={form.bedId} onChange={(e) => setForm((p) => ({ ...p, bedId: e.target.value }))}>
+            <option value="">Select bed</option>
+            {availableBeds.map((bed) => <option key={bed.id} value={bed.id}>{bed.bedNumber} ({bed.status})</option>)}
+          </Select>
           <Input label="Ward" value={form.ward} onChange={(e) => setForm((p) => ({ ...p, ward: e.target.value }))} required />
-          <Input label="Room" value={form.room} onChange={(e) => setForm((p) => ({ ...p, room: e.target.value }))} required />
-          <Input label="Bed" value={form.bed} onChange={(e) => setForm((p) => ({ ...p, bed: e.target.value }))} required />
+          <Input label="Room Label" value={form.room} onChange={(e) => setForm((p) => ({ ...p, room: e.target.value }))} required />
+          <Input label="Bed Label" value={form.bed} onChange={(e) => setForm((p) => ({ ...p, bed: e.target.value }))} required />
           <Input label="Diagnosis" value={form.diagnosis} onChange={(e) => setForm((p) => ({ ...p, diagnosis: e.target.value }))} />
           <Input label="Reason for Admission" value={form.reason} onChange={(e) => setForm((p) => ({ ...p, reason: e.target.value }))} />
           <div className="md:col-span-3">
@@ -119,7 +151,7 @@ export const IpdPage = () => {
         </form>
       </Card>
 
-      <Card>
+      <Card className="rounded-[28px]">
         <div className="mb-4 flex flex-wrap gap-2">
           <Input className="max-w-sm" placeholder="Search patient/MRN/ward/room/bed" value={query} onChange={(e) => setQuery(e.target.value)} />
           <Select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
@@ -139,6 +171,7 @@ export const IpdPage = () => {
                   <th className="py-2">Doctor</th>
                   <th className="py-2">Ward/Room/Bed</th>
                   <th className="py-2">Admitted</th>
+                  <th className="py-2">Billing</th>
                   <th className="py-2">Status</th>
                   <th className="py-2">Actions</th>
                 </tr>
@@ -153,6 +186,13 @@ export const IpdPage = () => {
                     <td className="py-3">Dr. {row.attendingDoctor.name}</td>
                     <td className="py-3">{row.ward} / {row.room} / {row.bed}</td>
                     <td className="py-3">{formatDateTime(row.admittedAt)}</td>
+                    <td className="py-3">
+                      {row.visit?.invoice ? (
+                        <Badge tone={row.visit.invoice.paymentStatus === "PAID" ? "success" : "warning"}>{row.visit.invoice.paymentStatus}</Badge>
+                      ) : (
+                        <span className="text-xs text-slate-500">Pending billing</span>
+                      )}
+                    </td>
                     <td className="py-3">
                       <Badge tone={row.status === "DISCHARGED" ? "success" : "warning"}>{row.status}</Badge>
                     </td>

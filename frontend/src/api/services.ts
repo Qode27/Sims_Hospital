@@ -1,12 +1,122 @@
 import { api } from "./client";
-import type { HospitalSettings, IPDAdmission, Invoice, Patient, Prescription, User, Visit } from "../types";
+import type {
+  AnalyticsReport,
+  DashboardSnapshot,
+  DoctorProfile,
+  HospitalSettings,
+  IPDAdmission,
+  Invoice,
+  InvoiceListResponse,
+  Patient,
+  Prescription,
+  Room,
+  User,
+  Visit,
+  VisitListResponse,
+} from "../types";
+
+type DoctorPayload = {
+  fullName: string;
+  qualification: string;
+  specialization: string;
+  registrationNumber?: string | null;
+  phone?: string | null;
+  email?: string | null;
+  username: string;
+  password: string;
+  active?: boolean;
+};
+
+type UpdateDoctorPayload = Partial<DoctorPayload>;
+
+type PatientPayload = {
+  name: string;
+  age?: number;
+  dob?: string | null;
+  gender: string;
+  phone: string;
+  address: string;
+  idProof?: string | null;
+};
+
+type VisitCreatePayload = {
+  patientId?: number;
+  patient?: {
+    name: string;
+    age?: number;
+    gender: string;
+    phone: string;
+    address: string;
+    idProof?: string;
+  };
+  doctorId: number;
+  consultationFee?: number;
+  type: "OPD" | "IPD";
+  reason?: string;
+  scheduledAt?: string;
+};
+
+type VisitPrescriptionPayload = {
+  symptoms?: string;
+  diagnosis?: string;
+  advice?: string;
+  items: Array<{
+    medicine: string;
+    dosage: string;
+    frequency: string;
+    durationDays: number;
+    instruction?: string;
+  }>;
+};
+
+type TransferToIpdPayload = {
+  attendingDoctorId?: number;
+  roomId?: number;
+  bedId?: number;
+  ward: string;
+  room: string;
+  bed: string;
+  diagnosis?: string;
+  reason?: string;
+  notes?: string;
+  admittedAt?: string;
+};
+
+type InvoiceCreatePayload = {
+  visitId: number;
+  invoiceType: "OPD" | "IPD" | "PHARMACY" | "LAB" | "GENERAL";
+  items: Array<{
+    category: "CONSULTATION" | "LAB" | "PROCEDURE" | "MEDICINE" | "MISC";
+    name: string;
+    qty: number;
+    unitPrice: number;
+  }>;
+  payments?: Array<{
+    paymentMode: "CASH" | "UPI" | "CARD" | "INSURANCE";
+    amount: number;
+    referenceNo?: string;
+  }>;
+};
+
+type InvoicePaymentsPayload = {
+  payments: Array<{
+    paymentMode: "CASH" | "UPI" | "CARD" | "INSURANCE";
+    amount: number;
+    referenceNo?: string;
+  }>;
+};
+
+type ChangePasswordResponse = {
+  message: string;
+  token?: string;
+};
 
 export const authApi = {
   login: (payload: { username: string; password: string }) =>
     api.post<{ token: string; user: User }>("/auth/login", payload),
   me: () => api.get<{ user: User }>("/auth/me"),
   changePassword: (payload: { oldPassword: string; newPassword: string }) =>
-    api.post("/auth/change-password", payload),
+    api.post<ChangePasswordResponse>("/auth/change-password", payload),
 };
 
 export const userApi = {
@@ -20,37 +130,14 @@ export const userApi = {
 
 export const doctorApi = {
   list: (params?: { active?: boolean; q?: string }) =>
-    api.get<{ data: User[] }>("/doctors", {
+    api.get<{ data: Array<User & { doctorProfile?: DoctorProfile | null }> }>("/doctors", {
       params: {
         active: params?.active === undefined ? undefined : String(params.active),
         q: params?.q,
       },
     }),
-  create: (payload: {
-    fullName: string;
-    qualification: string;
-    specialization: string;
-    registrationNumber?: string | null;
-    phone?: string | null;
-    email?: string | null;
-    username: string;
-    password: string;
-    active?: boolean;
-  }) => api.post("/doctors", payload),
-  update: (
-    id: number,
-    payload: Partial<{
-      fullName: string;
-      qualification: string;
-      specialization: string;
-      registrationNumber?: string | null;
-      phone?: string | null;
-      email?: string | null;
-      username: string;
-      password: string;
-      active: boolean;
-    }>,
-  ) => api.patch(`/doctors/${id}`, payload),
+  create: (payload: DoctorPayload) => api.post("/doctors", payload),
+  update: (id: number, payload: UpdateDoctorPayload) => api.patch(`/doctors/${id}`, payload),
   uploadSignature: (id: number, file: File) => {
     const formData = new FormData();
     formData.append("signature", file);
@@ -69,33 +156,14 @@ export const patientApi = {
     }),
   get: (id: number) =>
     api.get<{ data: Patient & { visits: Visit[]; ipdAdmissions?: IPDAdmission[]; prescriptions?: Prescription[] } }>(`/patients/${id}`),
-  create: (payload: {
-    name: string;
-    age?: number;
-    dob?: string | null;
-    gender: string;
-    phone: string;
-    address: string;
-    idProof?: string | null;
-  }) => api.post<{ data: Patient }>("/patients", payload),
-  update: (
-    id: number,
-    payload: {
-      name: string;
-      age?: number;
-      dob?: string | null;
-      gender: string;
-      phone: string;
-      address: string;
-      idProof?: string | null;
-    },
-  ) => api.put<{ data: Patient }>(`/patients/${id}`, payload),
+  create: (payload: PatientPayload) => api.post<{ data: Patient }>("/patients", payload),
+  update: (id: number, payload: PatientPayload) => api.put<{ data: Patient }>(`/patients/${id}`, payload),
   archive: (id: number) => api.delete(`/patients/${id}`),
 };
 
 export const visitApi = {
-  list: (params?: Record<string, unknown>) =>
-    api.get<{ data: Visit[]; pagination: { total: number; page: number; totalPages: number } }>("/visits", { params }),
+  list: (params?: Record<string, string | number | boolean | undefined>) =>
+    api.get<VisitListResponse>("/visits", { params }),
   get: (id: number) =>
     api.get<{
       data: Visit & {
@@ -108,40 +176,22 @@ export const visitApi = {
         } | null;
       };
     }>(`/visits/${id}`),
-  create: (payload: Record<string, unknown>) => api.post<{ data: Visit }>("/visits", payload),
+  create: (payload: VisitCreatePayload) => api.post<{ data: Visit }>("/visits", payload),
   updateStatus: (id: number, status: string) => api.patch(`/visits/${id}/status`, { status }),
   addNote: (id: number, text: string) => api.post(`/visits/${id}/notes`, { text }),
-  savePrescription: (
-    id: number,
-    payload: {
-      symptoms?: string;
-      diagnosis?: string;
-      advice?: string;
-      items: Array<Record<string, unknown>>;
-    },
-  ) => api.put(`/visits/${id}/prescription`, payload),
-  transferToIpd: (
-    id: number,
-    payload: {
-      attendingDoctorId?: number;
-      ward: string;
-      room: string;
-      bed: string;
-      diagnosis?: string;
-      reason?: string;
-      notes?: string;
-      admittedAt?: string;
-    },
-  ) => api.post(`/visits/${id}/transfer-to-ipd`, payload),
+  savePrescription: (id: number, payload: VisitPrescriptionPayload) => api.put(`/visits/${id}/prescription`, payload),
+  transferToIpd: (id: number, payload: TransferToIpdPayload) => api.post(`/visits/${id}/transfer-to-ipd`, payload),
 };
 
 export const ipdApi = {
-  list: (params?: Record<string, unknown>) =>
+  list: (params?: Record<string, string | number | boolean | undefined>) =>
     api.get<{ data: IPDAdmission[]; pagination: { total: number; page: number; totalPages: number } }>("/ipd", { params }),
   get: (id: number) => api.get<{ data: IPDAdmission }>(`/ipd/${id}`),
   create: (payload: {
     patientId: number;
     attendingDoctorId: number;
+    roomId?: number;
+    bedId?: number;
     ward: string;
     room: string;
     bed: string;
@@ -153,6 +203,8 @@ export const ipdApi = {
     id: number,
     payload: Partial<{
       attendingDoctorId: number;
+      roomId?: number | null;
+      bedId?: number | null;
       ward: string;
       room: string;
       bed: string;
@@ -165,30 +217,45 @@ export const ipdApi = {
 };
 
 export const invoiceApi = {
-  list: (params?: Record<string, unknown>) =>
-    api.get<{ data: Invoice[]; pagination: { total: number; page: number; totalPages: number } }>("/invoices", {
-      params,
-    }),
+  list: (params?: Record<string, string | number | boolean | undefined>) =>
+    api.get<InvoiceListResponse>("/invoices", { params }),
   get: (id: number) => api.get<{ data: Invoice; settings: HospitalSettings }>(`/invoices/${id}`),
-  create: (payload: Record<string, unknown>) =>
+  create: (payload: InvoiceCreatePayload) =>
     api.post<{ data: Invoice & { prescription?: { id: number; visitId: number } | null } }>("/invoices", payload),
+  addPayments: (id: number, payload: InvoicePaymentsPayload) =>
+    api.post<{ data: Invoice }>(`/invoices/${id}/payments`, payload),
 };
 
 export const prescriptionApi = {
   list: (params?: { patientId?: number; visitId?: number }) =>
-    api.get<{ data: Array<Prescription & {
-      patient?: { id: number; name: string; mrn: string; age?: number | null; gender: string } | null;
-      doctor: { id: number; name: string; doctorProfile?: { qualification?: string; specialization?: string; signaturePath?: string | null } | null };
-      visit: { id: number; scheduledAt: string; status: string; type: string };
-      invoice?: { id: number; invoiceNo: string; dueAmount: number } | null;
-    }> }>("/prescriptions", { params }),
+    api.get<{
+      data: Array<
+        Prescription & {
+          patient?: { id: number; name: string; mrn: string; age?: number | null; gender: string } | null;
+          doctor: { id: number; name: string; doctorProfile?: { qualification?: string; specialization?: string; signaturePath?: string | null } | null };
+          visit: { id: number; scheduledAt: string; status: string; type: string };
+          invoice?: { id: number; invoiceNo: string; dueAmount: number } | null;
+        }
+      >;
+    }>("/prescriptions", { params }),
   markPrinted: (id: number) => api.post(`/prescriptions/${id}/mark-printed`),
 };
 
 export const settingsApi = {
-  getPublic: () => api.get<{ data: Pick<HospitalSettings, "id" | "hospitalName" | "logoPath" | "kansaltLogoPath"> | null }>("/settings/public"),
+  getPublic: () =>
+    api.get<{ data: Pick<HospitalSettings, "id" | "hospitalName" | "logoPath" | "kansaltLogoPath" | "updatedAt"> | null }>("/settings/public"),
   get: () => api.get<{ data: HospitalSettings }>("/settings"),
-  update: (payload: Record<string, unknown>) => api.put<{ data: HospitalSettings }>("/settings", payload),
+  update: (payload: {
+    hospitalName: string;
+    address: string;
+    phone: string;
+    gstin?: string | null;
+    defaultConsultationFee: number;
+    invoicePrefix: string;
+    invoiceSequence: number;
+    footerNote?: string | null;
+    kansaltLogoPath?: string | null;
+  }) => api.put<{ data: HospitalSettings }>("/settings", payload),
   uploadLogo: (file: File) => {
     const formData = new FormData();
     formData.append("logo", file);
@@ -207,4 +274,13 @@ export const settingsApi = {
       },
     });
   },
+};
+
+export const roomApi = {
+  list: () => api.get<{ data: Room[] }>("/rooms"),
+};
+
+export const reportsApi = {
+  dashboard: (date?: string) => api.get<{ data: DashboardSnapshot }>("/reports/dashboard", { params: { date } }),
+  analytics: (date?: string) => api.get<{ data: AnalyticsReport }>("/reports/analytics", { params: { date } }),
 };

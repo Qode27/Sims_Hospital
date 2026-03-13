@@ -1,0 +1,50 @@
+trigger:
+  branches:
+    include:
+      - main
+
+pool:
+  vmImage: ubuntu-latest
+
+variables:
+  NODE_VERSION: "22.x"
+
+steps:
+  - task: NodeTool@0
+    inputs:
+      versionSpec: $(NODE_VERSION)
+    displayName: Use Node.js
+
+  - script: npm ci
+    workingDirectory: backend
+    displayName: Install backend dependencies
+
+  - script: npm ci
+    workingDirectory: frontend
+    displayName: Install frontend dependencies
+
+  - script: npm test
+    workingDirectory: backend
+    env:
+      JWT_SECRET: $(JWT_SECRET)
+    displayName: Run backend tests
+
+  - script: npm run build
+    workingDirectory: backend
+    env:
+      JWT_SECRET: $(JWT_SECRET)
+    displayName: Build backend
+
+  - script: npm run build
+    workingDirectory: frontend
+    displayName: Build frontend
+
+  - task: Docker@2
+    inputs:
+      command: buildAndPush
+      repository: $(containerRegistryRepository)
+      dockerfile: Dockerfile
+      containerRegistry: $(containerRegistryServiceConnection)
+      tags: |
+        $(Build.BuildId)
+    displayName: Build and push application container

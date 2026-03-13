@@ -2,22 +2,29 @@ import { useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
 import { useNavigate } from "react-router-dom";
 import { getErrorMessage } from "../api/client";
-import { settingsApi } from "../api/services";
+import { BrandLogo } from "../components/ui/BrandLogo";
 import { Button } from "../components/ui/Button";
 import { Input } from "../components/ui/Input";
 import { useAuth } from "../context/AuthContext";
+import { useBranding } from "../context/BrandingContext";
+import { buildAssetUrl, getBrandingVersion } from "../utils/branding";
 
 export const LoginPage = () => {
   const navigate = useNavigate();
   const { login, user } = useAuth();
+  const { branding } = useBranding();
   const [username, setUsername] = useState("admin");
   const [password, setPassword] = useState("Admin@12345");
   const [loading, setLoading] = useState(false);
-  const [branding, setBranding] = useState<{ hospitalName?: string; logoPath?: string | null; kansaltLogoPath?: string | null } | null>(null);
 
-  const uploadBaseUrl = import.meta.env.VITE_UPLOAD_BASE_URL || window.location.origin;
-  const logoSrc = useMemo(() => branding?.logoPath ? `${uploadBaseUrl}${branding.logoPath}` : null, [branding?.logoPath, uploadBaseUrl]);
-  const kansaltSrc = useMemo(() => branding?.kansaltLogoPath ? `${uploadBaseUrl}${branding.kansaltLogoPath}` : null, [branding?.kansaltLogoPath, uploadBaseUrl]);
+  const logoSrc = useMemo(
+    () => buildAssetUrl(branding?.logoPath, getBrandingVersion(branding?.updatedAt, branding?.logoPath)),
+    [branding?.logoPath, branding?.updatedAt],
+  );
+  const kansaltSrc = useMemo(
+    () => buildAssetUrl(branding?.kansaltLogoPath, getBrandingVersion(branding?.updatedAt, branding?.kansaltLogoPath)),
+    [branding?.kansaltLogoPath, branding?.updatedAt],
+  );
 
   const onSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -32,21 +39,6 @@ export const LoginPage = () => {
       setLoading(false);
     }
   };
-
-  useEffect(() => {
-    const loadBranding = async () => {
-      try {
-        const res = await settingsApi.getPublic();
-        if (res.data.data) {
-          setBranding(res.data.data);
-        }
-      } catch {
-        setBranding(null);
-      }
-    };
-
-    loadBranding();
-  }, []);
 
   useEffect(() => {
     if (logoSrc) {
@@ -71,7 +63,15 @@ export const LoginPage = () => {
       <div className="hidden bg-gradient-to-b from-brand-700 via-brand-600 to-slateblue p-12 text-white lg:flex lg:flex-col lg:justify-between">
         <div>
           <div className="flex items-center gap-3">
-            {logoSrc ? <img src={logoSrc} alt="SIMS logo" className="h-14 w-14 rounded bg-white object-contain p-1" /> : null}
+            <BrandLogo
+              logoPath={branding?.logoPath}
+              version={getBrandingVersion(branding?.updatedAt, branding?.logoPath)}
+              hospitalName={branding?.hospitalName}
+              alt="Hospital logo"
+              className="h-14 w-14 rounded bg-white/10"
+              imageClassName="rounded bg-white p-1"
+              fallbackClassName="text-lg text-white"
+            />
             <h1 className="text-4xl font-bold">{branding?.hospitalName || "SIMS Hospital"}</h1>
           </div>
           <p className="mt-4 max-w-md text-blue-100">
@@ -88,7 +88,14 @@ export const LoginPage = () => {
       <div className="flex items-center justify-center p-6">
         <form onSubmit={onSubmit} className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-8 shadow-panel">
           <div className="mb-4 flex items-center gap-3">
-            {logoSrc ? <img src={logoSrc} alt="SIMS logo" className="h-12 w-12 rounded object-contain" /> : null}
+            <BrandLogo
+              logoPath={branding?.logoPath}
+              version={getBrandingVersion(branding?.updatedAt, branding?.logoPath)}
+              hospitalName={branding?.hospitalName}
+              alt="Hospital logo"
+              className="h-12 w-12 rounded bg-brand-50"
+              fallbackClassName="text-brand-700"
+            />
             <div>
               <h2 className="text-2xl font-semibold text-slate-800">Sign In</h2>
               <p className="text-sm text-slate-500">Use your hospital credentials</p>

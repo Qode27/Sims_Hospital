@@ -1,17 +1,36 @@
-FROM python:3.11-slim
+FROM node:22-alpine AS frontend-builder
+WORKDIR /app/frontend
+COPY frontend/package*.json ./
+RUN npm ci
+COPY frontend/ ./
+RUN npm run build
 
-ENV PYTHONDONTWRITEBYTECODE=1
-ENV PYTHONUNBUFFERED=1
-ENV PORT=8501
+FROM node:22-alpine AS backend-builder
+WORKDIR /app/backend
+COPY backend/package*.json ./
+RUN npm ci
+COPY backend/ ./
+RUN npx prisma generate
+RUN npm run build
 
+FROM node:22-alpine AS runtime
 WORKDIR /app
 
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+ENV NODE_ENV=production
+ENV PORT=4000
+ENV DATABASE_URL=file:/app/data/sims.db
+ENV UPLOAD_DIR_PATH=/app/uploads
+ENV LOG_DIR=/app/logs
+ENV FRONTEND_DIST_DIR=/app/frontend-dist
 
-COPY . .
-RUN mkdir -p database assets/uploads
+COPY --from=backend-builder /app/backend/package*.json ./backend/
+COPY --from=backend-builder /app/backend/node_modules ./backend/node_modules
+COPY --from=backend-builder /app/backend/dist ./backend/dist
+COPY --from=backend-builder /app/backend/prisma ./backend/prisma
+COPY --from=frontend-builder /app/frontend/dist ./frontend-dist
 
-EXPOSE 8501
+RUN mkdir -p /app/data /app/uploads /app/logs
 
-CMD ["sh", "-c", "streamlit run app.py --server.address=0.0.0.0 --server.port=${PORT}"]
+WORKDIR /app/backend
+EXPOSE 4000
+CMD ["node", "dist/src/server.js"]

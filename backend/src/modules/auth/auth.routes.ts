@@ -2,6 +2,8 @@
 import { z } from "zod";
 import { prisma } from "../../db/prisma.js";
 import { authenticate, type AuthenticatedRequest } from "../../middleware/auth.js";
+import { writeAuditLog } from "../../services/audit.service.js";
+import { getPermissionsForRole } from "../../services/permission.service.js";
 import { validateBody } from "../../middleware/validate.js";
 import { asyncHandler } from "../../utils/asyncHandler.js";
 import { AppError } from "../../utils/appError.js";
@@ -46,6 +48,18 @@ router.post(
       userId: user.id,
       role: user.role,
       username: user.username,
+      sessionVersion: user.updatedAt.toISOString(),
+    });
+
+    const permissions = await getPermissionsForRole(user.role);
+
+    await writeAuditLog({
+      actorId: user.id,
+      action: "auth.login",
+      entityType: "user",
+      entityId: user.id,
+      description: `User ${user.username} signed in`,
+      request: req,
     });
 
     res.json({
@@ -56,6 +70,7 @@ router.post(
         username: user.username,
         role: user.role,
         forcePasswordChange: user.forcePasswordChange,
+        permissions,
       },
     });
   }),
@@ -100,7 +115,33 @@ router.post(
       },
     });
 
-    res.json({ message: "Password updated successfully" });
+    const refreshed = await prisma.user.findUniqueOrThrow({
+      where: { id: userId },
+      select: {
+        id: true,
+        username: true,
+        role: true,
+        updatedAt: true,
+      },
+    });
+
+    const token = signToken({
+      userId: refreshed.id,
+      role: refreshed.role,
+      username: refreshed.username,
+      sessionVersion: refreshed.updatedAt.toISOString(),
+    });
+
+    await writeAuditLog({
+      actorId: userId,
+      action: "auth.change-password",
+      entityType: "user",
+      entityId: userId,
+      description: "User changed password",
+      request: req,
+    });
+
+    res.json({ message: "Password updated successfully", token });
   }),
 );
 

@@ -12,6 +12,7 @@ body {
   margin: 0;
   min-height: 100vh;
   color: #1f2937;
+  line-height: 1.5;
 }
 
 * {
@@ -28,6 +29,146 @@ select,
 textarea,
 button {
   font: inherit;
+}
+
+button,
+[role="button"] {
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: not-allowed;
+}
+
+.hospital-brand {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+}
+
+.hospital-brand__logo {
+  width: auto;
+  height: 48px;
+  border-radius: 12px;
+  object-fit: contain;
+  background: #fff;
+  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.08);
+}
+
+.hospital-brand__copy {
+  min-width: 0;
+}
+
+.hospital-brand__title {
+  margin: 0;
+  color: #0f172a;
+  font-size: 1rem;
+  line-height: 1.15;
+  font-weight: 800;
+}
+
+.hospital-brand__subtitle {
+  margin: 4px 0 0;
+  color: #64748b;
+  font-size: 0.82rem;
+  line-height: 1.2;
+  font-weight: 600;
+}
+
+.hospital-brand--compact .hospital-brand__title {
+  font-size: 1.05rem;
+}
+
+.powered-by-kansalt {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+
+.powered-by-kansalt--stacked {
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+}
+
+.powered-by-kansalt__label {
+  color: #64748b;
+  font-size: 0.76rem;
+  line-height: 1;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.powered-by-kansalt__logo {
+  width: auto;
+  height: 22px;
+  object-fit: contain;
+}
+
+.app-footer {
+  height: 50px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 20px;
+  border-top: 1px solid #e5e7eb;
+  background: #ffffff;
+  font-size: 13px;
+  color: #475569;
+}
+
+.app-footer__copyright {
+  font-weight: 600;
+}
+
+.app-footer__powered-by {
+  gap: 8px;
+}
+
+.app-footer__label {
+  font-size: 11px;
+  letter-spacing: 0.08em;
+}
+
+.app-footer__logo {
+  height: 18px;
+}
+
+@media (max-width: 1180px) {
+  .app-footer {
+    flex-direction: column;
+    justify-content: center;
+    gap: 4px;
+    height: auto;
+    padding: 12px 20px;
+  }
+}
+
+@media (max-width: 720px) {
+  .hospital-brand {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .hospital-brand__logo {
+    height: 42px;
+  }
+
+  .hospital-brand__title {
+    font-size: 0.95rem;
+  }
+
+  .hospital-brand__subtitle {
+    font-size: 0.76rem;
+  }
+
+  .powered-by-kansalt__logo {
+    height: 18px;
+  }
 }
 
 @media print {

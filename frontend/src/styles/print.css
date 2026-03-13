@@ -5,6 +5,244 @@
   background: #fff;
 }
 
+.invoice-sheet {
+  border: 1px solid #dbe4f0;
+  border-radius: 28px;
+  padding: 28px;
+  box-shadow: 0 18px 60px rgba(15, 23, 42, 0.08);
+}
+
+.invoice-sheet__header {
+  display: flex;
+  justify-content: space-between;
+  gap: 24px;
+  border-bottom: 1px solid #e2e8f0;
+  padding-bottom: 20px;
+}
+
+.print-brand-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 24px;
+  border-bottom: 1px solid #e2e8f0;
+  padding-bottom: 20px;
+}
+
+.print-brand-header__owner {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.print-brand-header__hospital-brand {
+  align-items: center;
+  gap: 16px;
+}
+
+.print-brand-header__logo {
+  height: 64px;
+  border-radius: 16px;
+  box-shadow: none;
+}
+
+.print-brand-header__title {
+  font-size: 28px;
+  line-height: 1.05;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.print-brand-header__subtitle {
+  font-size: 13px;
+  color: #64748b;
+  font-weight: 700;
+}
+
+.print-brand-header__meta-copy {
+  font-size: 13px;
+  line-height: 1.7;
+  color: #475569;
+}
+
+.print-brand-header__meta-copy p {
+  margin: 0;
+}
+
+.print-brand-header__provider {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 16px;
+}
+
+.print-brand-header__powered-by {
+  align-items: flex-end;
+}
+
+.invoice-sheet__brand {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+  color: #475569;
+  font-size: 13px;
+}
+
+.invoice-sheet__logo {
+  width: 76px;
+  height: 76px;
+  border: 1px solid #dbe4f0;
+  border-radius: 20px;
+  background: #f8fafc;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.invoice-sheet__title {
+  margin: 0 0 8px;
+  font-size: 28px;
+  line-height: 1.1;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.invoice-sheet__meta {
+  min-width: 220px;
+  text-align: right;
+  color: #475569;
+  font-size: 13px;
+}
+
+.invoice-sheet__meta-label {
+  margin: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  font-size: 11px;
+  color: #64748b;
+}
+
+.invoice-sheet__meta-value {
+  margin: 6px 0 10px;
+  font-size: 22px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.invoice-sheet__info-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  margin-top: 20px;
+}
+
+.invoice-sheet__info-card {
+  border: 1px solid #e2e8f0;
+  border-radius: 22px;
+  background: #f8fafc;
+  padding: 16px;
+  font-size: 13px;
+  color: #475569;
+  line-height: 1.7;
+}
+
+.invoice-sheet__section-label {
+  margin: 0 0 10px;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  color: #64748b;
+}
+
+.invoice-sheet__table-wrap {
+  margin-top: 20px;
+}
+
+.invoice-sheet__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.invoice-sheet__table thead {
+  background: #eff6ff;
+  color: #334155;
+}
+
+.invoice-sheet__table th,
+.invoice-sheet__table td {
+  padding: 12px 10px;
+  border: 1px solid #dbe4f0;
+}
+
+.invoice-sheet__summary-grid {
+  margin-top: 20px;
+  display: grid;
+  grid-template-columns: 1.1fr 0.9fr;
+  gap: 20px;
+}
+
+.invoice-sheet__payments {
+  border: 1px solid #e2e8f0;
+  border-radius: 22px;
+  background: #fff;
+  padding: 16px;
+}
+
+.invoice-sheet__payment-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 0;
+  border-top: 1px solid #f1f5f9;
+}
+
+.invoice-sheet__payment-row:first-of-type {
+  border-top: 0;
+}
+
+.invoice-sheet__totals {
+  border: 1px solid #dbeafe;
+  border-radius: 22px;
+  background: #f8fbff;
+  padding: 16px;
+  display: grid;
+  gap: 10px;
+  font-size: 14px;
+}
+
+.invoice-sheet__totals div {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.invoice-sheet__totals-row {
+  border-top: 1px solid #dbe4f0;
+  padding-top: 10px;
+  font-size: 16px;
+}
+
+.invoice-sheet__footer {
+  margin-top: 28px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 24px;
+  font-size: 13px;
+  color: #475569;
+}
+
+.invoice-sheet__signature {
+  min-width: 180px;
+  text-align: center;
+}
+
+.invoice-sheet__signature-line {
+  border-bottom: 1px solid #94a3b8;
+  margin-bottom: 6px;
+}
+
 .prescription-sheet {
   position: relative;
   padding: 0;
@@ -29,6 +267,23 @@
 .prescription-header-left {
   display: flex;
   gap: 12px;
+}
+
+.prescription-brand {
+  align-items: center;
+  gap: 12px;
+}
+
+.prescription-brand__logo {
+  height: 54px;
+  border-radius: 10px;
+  box-shadow: none;
+}
+
+.prescription-brand__subtitle {
+  margin-top: 2px;
+  font-size: 11px;
+  color: #335a7a;
 }
 
 .prescription-logo-box {
@@ -71,10 +326,14 @@
 }
 
 .prescription-doctor-name {
-  margin: 0 0 3px 0;
+  margin: 8px 0 3px 0;
   font-size: 16px;
   font-weight: 700;
   color: #0d4673;
+}
+
+.prescription-powered-by {
+  margin-bottom: 8px;
 }
 
 .prescription-patient-grid {
@@ -214,6 +473,16 @@
     max-width: none !important;
     margin: 0 !important;
     padding: 0 !important;
+  }
+}
+
+@media (max-width: 900px) {
+  .print-brand-header {
+    flex-direction: column;
+  }
+
+  .print-brand-header__provider {
+    align-items: flex-start;
   }
 }
 

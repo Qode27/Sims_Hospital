@@ -1,0 +1,45 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            backend/package-lock.json
+            frontend/package-lock.json
+
+      - name: Install backend
+        working-directory: backend
+        run: npm ci
+
+      - name: Install frontend
+        working-directory: frontend
+        run: npm ci
+
+      - name: Backend tests
+        working-directory: backend
+        env:
+          JWT_SECRET: ci-secret
+        run: npm test
+
+      - name: Backend build
+        working-directory: backend
+        env:
+          JWT_SECRET: ci-secret
+        run: npm run build
+
+      - name: Frontend build
+        working-directory: frontend
+        run: npm run build

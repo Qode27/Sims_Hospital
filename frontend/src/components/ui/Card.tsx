@@ -1,9 +1,9 @@
-﻿export const Card = ({
+export const Card = ({
   children,
   className = "",
 }: {
   children: React.ReactNode;
   className?: string;
 }) => {
-  return <div className={`rounded-2xl border border-slate-100 bg-white p-5 shadow-panel ${className}`}>{children}</div>;
+  return <div className={`rounded-[28px] border border-slate-200/80 bg-white p-6 shadow-panel ${className}`}>{children}</div>;
 };

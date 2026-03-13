@@ -1,11 +1,12 @@
-﻿import { Navigate, Outlet, useLocation } from "react-router-dom";
+import { Navigate, Outlet, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import type { Role } from "../types";
 import { Loader } from "./ui/Loader";
 
 export const ProtectedRoute = ({
   roles,
 }: {
-  roles?: Array<"ADMIN" | "RECEPTION" | "DOCTOR">;
+  roles?: Role[];
 }) => {
   const { user, loading } = useAuth();
   const location = useLocation();

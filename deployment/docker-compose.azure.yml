@@ -1,0 +1,29 @@
+version: "3.9"
+
+services:
+  sims-hospital:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    image: sims-hospital:latest
+    ports:
+      - "4000:4000"
+    environment:
+      NODE_ENV: production
+      PORT: 4000
+      JWT_SECRET: ${JWT_SECRET}
+      DATABASE_URL: ${DATABASE_URL:-file:/app/data/sims.db}
+      CORS_ORIGIN: ${CORS_ORIGIN:-*}
+      FRONTEND_DIST_DIR: /app/frontend-dist
+      UPLOAD_DIR_PATH: /app/uploads
+      LOG_DIR: /app/logs
+      ENABLE_FILE_LOGGING: "true"
+    volumes:
+      - hospital-data:/app/data
+      - hospital-uploads:/app/uploads
+      - hospital-logs:/app/logs
+
+volumes:
+  hospital-data:
+  hospital-uploads:
+  hospital-logs:

@@ -1,59 +1,89 @@
-# SIMS Hospital
+# SIMS Hospital Enterprise HMS
 
-SIMS Hospital is a local-first hospital management system with:
+Productionized hospital management platform for OPD, IPD, billing, prescriptions, reporting, and deployment readiness.
 
-- React + Vite + TypeScript frontend
-- Node + Express + TypeScript backend
-- SQLite + Prisma
-- Electron desktop wrapper + Windows installer (NSIS)
+## Stack
 
-## Monorepo Structure
+- `frontend/`: React + Vite + TypeScript
+- `backend/`: Express + TypeScript + Prisma
+- `backend/prisma/`: relational schema, migrations, seed data
+- `deployment/`: Docker, Azure, and CI/CD assets
+- `docs/`: architecture and operating guides
 
-```text
-.
-|-- backend/
-|-- frontend/
-|-- desktop-electron/
-|-- docs/
-|-- INSTALL.md
-`-- package.json
-```
+## Key Upgrades
 
-## Web Development
+- Enterprise hospital domain model with `rooms`, `beds`, `payments`, `permissions`, and `audit logs`
+- Real OPD to IPD workflow with bed-aware admission and discharge handling
+- Split-payment billing with `Cash`, `UPI`, `Card`, and `Insurance`
+- Auto-generated prescription sheet after bill clearance
+- Dashboard and analytics endpoints for revenue, occupancy, and doctor-wise volumes
+- Role-aware navigation for admin, reception, doctor, billing, pharmacy, and lab teams
+- Cloud-ready packaging for Docker, GitHub Actions, and Azure pipelines
 
-```powershell
-npm install
-npm run dev:backend
-npm run dev:frontend
-```
-
-## Desktop Installer Build (Windows)
+## Local Development
 
 ```powershell
-npm install
-npm run build:frontend
-npm run build:backend
-npm run build:win
+cd backend
+npm ci
+Copy-Item .env.example .env
+
+cd ..\frontend
+npm ci
+Copy-Item .env.example .env
 ```
 
-Output:
+Run services:
 
-- `dist/installer/SIMS-Hospital-Setup-<version>.exe`
+```powershell
+cd backend
+npm run dev
 
-## Default Runtime Storage (Desktop App)
+cd ..\frontend
+npm run dev
+```
 
-- `%APPDATA%\\SIMS Hospital\\data\\sims.db`
-- `%APPDATA%\\SIMS Hospital\\uploads\\`
-- `%APPDATA%\\SIMS Hospital\\logs\\`
+## Tests
 
-## Initial Admin (Auto-seeded on first launch)
+```powershell
+cd backend
+npm test
+```
 
-- Username: `admin`
-- Password: `Admin@12345`
-- Password change is enforced at first login.
+The integration suite covers:
 
-## Additional Guides
+- patient registration
+- OPD visit creation
+- billing and payment capture
+- prescription generation
+- OPD to IPD admission
+- discharge with bed release
 
-- Build/install guide: `INSTALL.md`
-- Staff guide: `docs/USER_GUIDE.md`
-- Backup guide: `docs/BACKUP_GUIDE.md`
+## Production Build
+
+```powershell
+cd backend
+npm run build
+
+cd ..\frontend
+npm run build
+```
+
+Container build:
+
+```powershell
+docker build -t sims-hospital .
+docker run -p 4000:4000 -e JWT_SECRET=replace-me sims-hospital
+```
+
+## Default Seed Users
+
+- `admin` / `Admin@12345`
+- `billing` / `Billing@12345`
+- `doctor1` / `doctor123`
+
+## Documentation
+
+- [Architecture](./docs/ARCHITECTURE.md)
+- [Production Runbook](./docs/PRODUCTION_RUNBOOK.md)
+- [Install Guide](./INSTALL.md)
+- [User Guide](./docs/USER_GUIDE.md)

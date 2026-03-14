@@ -1,10 +1,13 @@
-﻿import jwt from "jsonwebtoken";
+import jwt from "jsonwebtoken";
 import { env } from "../config/env.js";
+import type { UserRoleValue } from "../types/domain.js";
 
 export type TokenPayload = {
   userId: number;
-  role: "ADMIN" | "RECEPTION" | "DOCTOR";
+  role: UserRoleValue;
   username: string;
+  sessionVersion: string;
+  exp?: number;
 };
 
 export const signToken = (payload: TokenPayload) => {

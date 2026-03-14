@@ -1,28 +1,33 @@
-﻿import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
-import { Link, useParams, useSearchParams } from "react-router-dom";
+import { Link, useLocation, useParams, useSearchParams } from "react-router-dom";
 import { getErrorMessage } from "../../api/client";
 import { invoiceApi } from "../../api/services";
+import { PrintFooter } from "../../components/print/PrintFooter";
+import { PrintHeader } from "../../components/print/PrintHeader";
+import { PrintTable } from "../../components/print/PrintTable";
+import { HospitalBrand } from "../../components/branding/HospitalBrand";
 import { Button } from "../../components/ui/Button";
 import { Loader } from "../../components/ui/Loader";
+import type { HospitalSettings, Invoice } from "../../types";
+import { aggregateInvoiceCharges, BILLING_CHARGE_FIELDS } from "../../utils/billing";
 import { formatCurrency, formatDateTime } from "../../utils/format";
 import "../../styles/print.css";
 
 export const InvoicePrintPage = () => {
+  const location = useLocation();
   const params = useParams();
   const invoiceId = Number(params.id);
   const [searchParams] = useSearchParams();
   const format = searchParams.get("format") === "thermal" ? "thermal" : "a4";
+  const backTo = (location.state as { backTo?: string } | null)?.backTo ?? "/invoices";
 
   const [loading, setLoading] = useState(true);
-  const [invoice, setInvoice] = useState<any | null>(null);
-  const [settings, setSettings] = useState<any | null>(null);
+  const [invoice, setInvoice] = useState<Invoice | null>(null);
+  const [settings, setSettings] = useState<HospitalSettings | null>(null);
 
-  const uploadBaseUrl = import.meta.env.VITE_UPLOAD_BASE_URL || window.location.origin;
-  const logoSrc = useMemo(() => {
-    if (!settings?.logoPath) return null;
-    return `${uploadBaseUrl}${settings.logoPath}`;
-  }, [settings?.logoPath, uploadBaseUrl]);
+  const chargeSummary = useMemo(() => aggregateInvoiceCharges(invoice?.items ?? []), [invoice?.items]);
+  const primaryPaymentMode = invoice?.payments?.[0]?.paymentMode ?? invoice?.paymentMode ?? "-";
 
   useEffect(() => {
     document.body.setAttribute("data-print-format", format);
@@ -59,159 +64,118 @@ export const InvoicePrintPage = () => {
   }
 
   return (
-    <div className="mx-auto max-w-4xl space-y-4">
-      <div className="print-controls no-print flex flex-wrap items-center justify-between rounded-xl border bg-white p-4 shadow-panel">
+    <div className="mx-auto max-w-5xl space-y-4">
+      <div className="print-controls no-print flex flex-wrap items-center justify-between rounded-[28px] border border-slate-200 bg-white p-4 shadow-panel">
         <div>
           <h1 className="text-lg font-semibold">Invoice Print View</h1>
-          <p className="text-sm text-slate-500">Format: {format === "a4" ? "A4" : "Thermal 80mm"}</p>
+          <p className="text-sm text-slate-500">Simplified hospital invoice layout for A4 and thermal printing</p>
         </div>
-        <div className="flex gap-2">
-          <Link to={`/invoices/${invoice.id}/print`}>
+        <div className="flex flex-wrap gap-2">
+          <Link to={`/invoices/${invoice.id}/print`} state={{ backTo }}>
             <Button variant={format === "a4" ? "primary" : "secondary"}>A4</Button>
           </Link>
-          <Link to={`/invoices/${invoice.id}/print?format=thermal`}>
+          <Link to={`/invoices/${invoice.id}/print?format=thermal`} state={{ backTo }}>
             <Button variant={format === "thermal" ? "primary" : "secondary"}>80mm</Button>
           </Link>
-          <Button onClick={() => window.print()}>Print Bill</Button>
-          <Link to="/invoices">
+          <Button onClick={() => window.print()}>Print Invoice</Button>
+          <Link to={backTo}>
             <Button variant="ghost">Back</Button>
           </Link>
         </div>
       </div>
 
-      <article
-        className={`print-sheet-a4 rounded-xl border border-slate-200 bg-white p-8 shadow-panel ${
-          format === "a4" ? "" : "hidden"
-        }`}
-      >
-        <header className="mb-6 flex items-start justify-between border-b border-slate-200 pb-5">
-          <div className="flex gap-3">
-            {logoSrc ? <img src={logoSrc} alt="SIMS Hospital Logo" className="h-14 w-14 rounded object-cover" /> : null}
-            <div>
-              <h2 className="text-2xl font-bold text-slate-800">{settings.hospitalName}</h2>
-              <p className="text-sm text-slate-600">{settings.address}</p>
-              <p className="text-sm text-slate-600">Phone: {settings.phone}</p>
-              {settings.gstin ? <p className="text-sm text-slate-600">GSTIN: {settings.gstin}</p> : null}
+      <article className={`print-sheet-a4 invoice-sheet ${format === "a4" ? "" : "hidden"}`}>
+        <PrintHeader
+          address={settings.address}
+          phone={settings.phone}
+          hospitalName={settings.hospitalName}
+          metaLabel="Bill ID"
+          metaValue={invoice.invoiceNo}
+          metaText={`Date: ${formatDateTime(invoice.createdAt)}`}
+        />
+
+        <section className="invoice-sheet__info-grid">
+          <div className="invoice-sheet__info-card">
+            <p className="invoice-sheet__section-label">Patient Information</p>
+            <p><strong>Patient Name:</strong> {invoice.visit.patient.name}</p>
+            <p><strong>Patient ID:</strong> {invoice.visit.patient.mrn}</p>
+            <p><strong>Phone:</strong> {invoice.visit.patient.phone}</p>
+          </div>
+          <div className="invoice-sheet__info-card">
+            <p className="invoice-sheet__section-label">Doctor Information</p>
+            <p><strong>Doctor Name:</strong> Dr. {invoice.visit.doctor.name}</p>
+            <p><strong>Visit ID:</strong> #{invoice.visit.id}</p>
+            <p><strong>Payment Mode:</strong> {primaryPaymentMode}</p>
+          </div>
+        </section>
+
+        <PrintTable
+          headers={["Charge", "Amount"]}
+          rows={BILLING_CHARGE_FIELDS.map((field) => [field.label, formatCurrency(chargeSummary[field.key])])}
+        />
+
+        <section className="invoice-sheet__summary-grid">
+          <div className="invoice-sheet__payments">
+            <p className="invoice-sheet__section-label">Payment Information</p>
+            <div className="invoice-sheet__payment-row">
+              <div>
+                <p className="font-medium text-slate-800">{primaryPaymentMode}</p>
+                <p className="text-xs text-slate-500">{invoice.payments?.[0]?.referenceNo || "No reference provided"}</p>
+              </div>
+              <div className="text-right">
+                <p className="font-semibold text-slate-900">{formatCurrency(invoice.paidAmount)}</p>
+                <p className="text-xs text-slate-500">{invoice.payments?.[0]?.receivedAt ? formatDateTime(invoice.payments[0].receivedAt) : formatDateTime(invoice.createdAt)}</p>
+              </div>
             </div>
           </div>
-          <div className="text-right">
-            <p className="text-xs uppercase tracking-wide text-slate-500">Invoice</p>
-            <p className="text-lg font-semibold">{invoice.invoiceNo}</p>
-            <p className="text-sm text-slate-600">{formatDateTime(invoice.createdAt)}</p>
-          </div>
-        </header>
 
-        <section className="grid gap-4 rounded-lg bg-slate-50 p-4 md:grid-cols-2">
-          <div>
-            <p className="text-xs uppercase text-slate-500">Patient</p>
-            <p className="font-medium">{invoice.visit.patient.name}</p>
-            <p className="text-sm text-slate-600">MRN: {invoice.visit.patient.mrn}</p>
-            <p className="text-sm text-slate-600">Phone: {invoice.visit.patient.phone}</p>
-          </div>
-          <div>
-            <p className="text-xs uppercase text-slate-500">Consulting Doctor</p>
-            <p className="font-medium">Dr. {invoice.visit.doctor.name}</p>
-            {invoice.visit.doctor?.doctorProfile?.qualification ? (
-              <p className="text-sm text-slate-600">{invoice.visit.doctor.doctorProfile.qualification}</p>
-            ) : null}
-            <p className="text-sm text-slate-600">Visit ID: #{invoice.visit.id}</p>
-            <p className="text-sm text-slate-600">Payment: {invoice.paymentMode}</p>
+          <div className="invoice-sheet__totals">
+            <div className="invoice-sheet__totals-row"><span>Total Amount</span><strong>{formatCurrency(invoice.total)}</strong></div>
+            <div><span>Paid Amount</span><strong>{formatCurrency(invoice.paidAmount)}</strong></div>
+            <div><span>Balance</span><strong>{formatCurrency(invoice.dueAmount)}</strong></div>
           </div>
         </section>
 
-        <table className="mt-5 min-w-full border border-slate-200 text-sm">
-          <thead className="bg-slate-100 text-left text-slate-600">
-            <tr>
-              <th className="px-3 py-2">#</th>
-              <th className="px-3 py-2">Item</th>
-              <th className="px-3 py-2">Category</th>
-              <th className="px-3 py-2 text-right">Qty</th>
-              <th className="px-3 py-2 text-right">Rate</th>
-              <th className="px-3 py-2 text-right">Disc</th>
-              <th className="px-3 py-2 text-right">Tax</th>
-              <th className="px-3 py-2 text-right">Amount</th>
-            </tr>
-          </thead>
-          <tbody>
-            {invoice.items.map((item: any, index: number) => (
-              <tr key={item.id} className="border-t border-slate-200">
-                <td className="px-3 py-2">{index + 1}</td>
-                <td className="px-3 py-2">{item.name}</td>
-                <td className="px-3 py-2">{item.category}</td>
-                <td className="px-3 py-2 text-right">{item.qty}</td>
-                <td className="px-3 py-2 text-right">{formatCurrency(item.unitPrice)}</td>
-                <td className="px-3 py-2 text-right">{formatCurrency(item.discount)}</td>
-                <td className="px-3 py-2 text-right">{formatCurrency(item.tax)}</td>
-                <td className="px-3 py-2 text-right font-medium">{formatCurrency(item.amount)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-
-        <section className="mt-4 ml-auto w-full max-w-sm rounded-lg border border-slate-200 p-3 text-sm">
-          <div className="flex justify-between py-1"><span>Subtotal</span><strong>{formatCurrency(invoice.subtotal)}</strong></div>
-          <div className="flex justify-between py-1"><span>Discount</span><strong>{formatCurrency(invoice.discount)}</strong></div>
-          <div className="flex justify-between py-1"><span>Tax</span><strong>{formatCurrency(invoice.tax)}</strong></div>
-          <div className="flex justify-between border-t border-slate-200 py-2 text-base"><span>Total</span><strong>{formatCurrency(invoice.total)}</strong></div>
-          <div className="flex justify-between py-1"><span>Paid</span><strong>{formatCurrency(invoice.paidAmount)}</strong></div>
-          <div className="flex justify-between py-1"><span>Due</span><strong>{formatCurrency(invoice.dueAmount)}</strong></div>
-        </section>
-
-        <footer className="mt-8 flex items-end justify-between text-sm text-slate-600">
-          <p>{settings.footerNote || "Get well soon. Thank you for visiting."}</p>
-          <div className="text-right">
-            <p className="mb-8">Authorized Signature</p>
-            <div className="w-40 border-b border-slate-400" />
-          </div>
-        </footer>
+        <PrintFooter note={settings.footerNote} />
       </article>
 
-      <article
-        className={`print-sheet-thermal rounded-xl border border-slate-200 bg-white p-4 shadow-panel ${
-          format === "thermal" ? "" : "hidden"
-        }`}
-      >
+      <article className={`print-sheet-thermal rounded-2xl border border-slate-200 bg-white p-4 shadow-panel ${format === "thermal" ? "" : "hidden"}`}>
         <div className="text-center">
-          {logoSrc ? <img src={logoSrc} alt="SIMS Hospital Logo" className="mx-auto h-10 w-10 rounded object-cover" /> : null}
-          <p className="font-bold">{settings.hospitalName}</p>
+          <div className="mb-2 flex justify-center">
+            <HospitalBrand compact className="items-center" logoClassName="h-10" titleClassName="text-sm" subtitleClassName="text-[10px]" />
+          </div>
           <p className="text-xs">{settings.address}</p>
           <p className="text-xs">{settings.phone}</p>
-          <p className="mt-2 text-xs">Invoice: {invoice.invoiceNo}</p>
+          <p className="mt-2 text-xs">Bill ID: {invoice.invoiceNo}</p>
           <p className="text-xs">{formatDateTime(invoice.createdAt)}</p>
         </div>
 
         <div className="mt-3 border-y border-dashed border-slate-300 py-2 text-xs">
           <p>Patient: {invoice.visit.patient.name}</p>
           <p>Doctor: Dr. {invoice.visit.doctor.name}</p>
+          <p>Payment: {primaryPaymentMode}</p>
         </div>
 
         <table className="mt-2 w-full text-xs">
-          <thead>
-            <tr className="border-b border-slate-200">
-              <th className="py-1 text-left">Item</th>
-              <th className="py-1 text-right">Amt</th>
-            </tr>
-          </thead>
           <tbody>
-            {invoice.items.map((item: any) => (
-              <tr key={item.id} className="border-b border-slate-100">
-                <td className="py-1">{item.name}</td>
-                <td className="py-1 text-right">{formatCurrency(item.amount)}</td>
+            {BILLING_CHARGE_FIELDS.map((field) => (
+              <tr key={field.key} className="border-b border-slate-100">
+                <td className="py-1 text-left">{field.label}</td>
+                <td className="py-1 text-right">{formatCurrency(chargeSummary[field.key])}</td>
               </tr>
             ))}
           </tbody>
         </table>
 
         <div className="mt-2 space-y-1 text-xs">
-          <div className="flex justify-between"><span>Subtotal</span><span>{formatCurrency(invoice.subtotal)}</span></div>
-          <div className="flex justify-between"><span>Discount</span><span>{formatCurrency(invoice.discount)}</span></div>
-          <div className="flex justify-between"><span>Tax</span><span>{formatCurrency(invoice.tax)}</span></div>
-          <div className="flex justify-between border-t border-dashed border-slate-300 pt-1 font-semibold"><span>Total</span><span>{formatCurrency(invoice.total)}</span></div>
-          <div className="flex justify-between"><span>Paid</span><span>{formatCurrency(invoice.paidAmount)}</span></div>
-          <div className="flex justify-between"><span>Due</span><span>{formatCurrency(invoice.dueAmount)}</span></div>
+          <div className="flex justify-between"><span>Total Amount</span><span>{formatCurrency(invoice.total)}</span></div>
+          <div className="flex justify-between"><span>Paid Amount</span><span>{formatCurrency(invoice.paidAmount)}</span></div>
+          <div className="flex justify-between"><span>Balance</span><span>{formatCurrency(invoice.dueAmount)}</span></div>
         </div>
 
-        <p className="mt-3 text-center text-[10px]">{settings.footerNote || "Thank you"}</p>
+        <div className="mt-3 text-center text-[10px]">
+          <p>{settings.footerNote || "Thank you"}</p>
+        </div>
       </article>
     </div>
   );

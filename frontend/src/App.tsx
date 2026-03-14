@@ -16,6 +16,7 @@ import { PatientProfilePage } from "./pages/patients/PatientProfilePage";
 import { PatientsPage } from "./pages/patients/PatientsPage";
 import { PrescriptionPage } from "./pages/prescriptions/PrescriptionPage";
 import { PrescriptionPrintPage } from "./pages/prescriptions/PrescriptionPrintPage";
+import { ReportsPage } from "./pages/reports/ReportsPage";
 import { VisitsPage } from "./pages/visits/VisitsPage";
 
 export const App = () => {
@@ -31,6 +32,7 @@ export const App = () => {
         <Route element={<AppLayout />}>
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
           <Route path="/dashboard" element={<DashboardPage />} />
+          <Route path="/reports" element={<ReportsPage />} />
           <Route path="/patients" element={<PatientsPage />} />
           <Route path="/patients/:id" element={<PatientProfilePage />} />
           <Route path="/invoices" element={<InvoicesPage />} />

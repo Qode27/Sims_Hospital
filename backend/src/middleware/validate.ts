@@ -1,8 +1,15 @@
-﻿import type { NextFunction, Request, Response } from "express";
+import type { NextFunction, Request, Response } from "express";
 import { ZodError, type ZodTypeAny } from "zod";
 
 const zodErrorToMessage = (error: ZodError) =>
   error.issues.map((issue) => `${issue.path.join(".") || "field"}: ${issue.message}`).join("; ");
+
+const sendValidationError = (res: Response, error: ZodError) =>
+  res.status(400).json({
+    error: true,
+    message: zodErrorToMessage(error),
+    code: "VALIDATION_ERROR",
+  });
 
 export const validateBody = (schema: ZodTypeAny) => {
   return (req: Request, res: Response, next: NextFunction) => {
@@ -11,7 +18,7 @@ export const validateBody = (schema: ZodTypeAny) => {
       next();
     } catch (error) {
       if (error instanceof ZodError) {
-        return res.status(400).json({ message: zodErrorToMessage(error) });
+        return sendValidationError(res, error);
       }
       next(error);
     }
@@ -25,7 +32,7 @@ export const validateQuery = (schema: ZodTypeAny) => {
       next();
     } catch (error) {
       if (error instanceof ZodError) {
-        return res.status(400).json({ message: zodErrorToMessage(error) });
+        return sendValidationError(res, error);
       }
       next(error);
     }
@@ -39,7 +46,7 @@ export const validateParams = (schema: ZodTypeAny) => {
       next();
     } catch (error) {
       if (error instanceof ZodError) {
-        return res.status(400).json({ message: zodErrorToMessage(error) });
+        return sendValidationError(res, error);
       }
       next(error);
     }

@@ -54,6 +54,9 @@ async function main() {
   const reception = await ensureUser("Front Desk", "reception", "RECEPTION", "reception123");
   const doctorA = await ensureUser("Dr. Ananya Rao", "doctor1", "DOCTOR", "doctor123");
   const doctorB = await ensureUser("Dr. Vivek Sharma", "doctor2", "DOCTOR", "doctor123");
+  await ensureUser("Billing Desk", "billing", "BILLING", "Billing@12345");
+  await ensureUser("Pharmacy Desk", "pharmacy", "PHARMACY", "Pharmacy@12345");
+  await ensureUser("Lab Technician", "labtech", "LAB_TECHNICIAN", "Labtech@12345");
   await ensureDoctorProfile(doctorA.id, {
     qualification: "MBBS, MD",
     specialization: "General Medicine",
@@ -83,6 +86,8 @@ async function main() {
       invoiceSequence: 1,
       footerNote: "Thank you for choosing SIMS Hospital.",
       kansaltLogoPath: "/uploads/kansalt-full-logo.svg",
+      currencyCode: "INR",
+      timezone: "Asia/Kolkata",
     },
   });
 
@@ -206,12 +211,16 @@ async function main() {
       data: {
         visitId: visit1.id,
         invoiceNo,
+        patientId: patients[0].id,
+        doctorId: doctorA.id,
+        invoiceType: "OPD",
         subtotal,
         discount: 0,
         tax: 0,
         total,
         paidAmount: paid,
         dueAmount: 0,
+        paymentStatus: "PAID",
         paymentMode: "CASH",
         createdById: reception.id,
         items: {
@@ -220,6 +229,16 @@ async function main() {
             amount: roundMoney(item.qty * item.unitPrice),
           })),
         },
+      },
+    });
+
+    await prisma.payment.create({
+      data: {
+        invoiceId: createdInvoice.id,
+        patientId: patients[0].id,
+        amount: paid,
+        paymentMode: "CASH",
+        recordedById: reception.id,
       },
     });
 
@@ -253,6 +272,7 @@ async function main() {
   console.log("Admin login -> username: admin, password: Admin@12345");
   console.log("Reception login -> username: reception, password: reception123");
   console.log("Doctor login -> username: doctor1, password: doctor123");
+  console.log("Billing login -> username: billing, password: Billing@12345");
 }
 
 main()

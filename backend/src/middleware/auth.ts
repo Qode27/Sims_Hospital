@@ -1,6 +1,8 @@
-﻿import type { NextFunction, Request, Response } from "express";
+import type { NextFunction, Request, Response } from "express";
 import { prisma } from "../db/prisma.js";
+import { getPermissionsForRole } from "../services/permission.service.js";
 import type { UserRoleValue } from "../types/domain.js";
+import { AppError } from "../utils/appError.js";
 import { verifyToken } from "../utils/jwt.js";
 
 export type AuthenticatedUser = {
@@ -9,11 +11,19 @@ export type AuthenticatedUser = {
   username: string;
   name: string;
   forcePasswordChange: boolean;
+  permissions?: string[];
 };
 
 export type AuthenticatedRequest = Request & {
   user?: AuthenticatedUser;
 };
+
+const sendAuthError = (res: Response, message: string, code: string, statusCode = 401) =>
+  res.status(statusCode).json({
+    error: true,
+    message,
+    code,
+  });
 
 export const authenticate = async (
   req: AuthenticatedRequest,
@@ -23,7 +33,7 @@ export const authenticate = async (
   try {
     const authHeader = req.headers.authorization;
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
-      return res.status(401).json({ message: "Unauthorized" });
+      return sendAuthError(res, "Unauthorized", "UNAUTHORIZED");
     }
 
     const token = authHeader.slice("Bearer ".length);
@@ -31,11 +41,15 @@ export const authenticate = async (
 
     const user = await prisma.user.findUnique({
       where: { id: payload.userId },
-      select: { id: true, role: true, username: true, name: true, active: true, forcePasswordChange: true },
+      select: { id: true, role: true, username: true, name: true, active: true, forcePasswordChange: true, updatedAt: true },
     });
 
     if (!user || !user.active) {
-      return res.status(401).json({ message: "User account is inactive" });
+      return sendAuthError(res, "User account is inactive", "SESSION_INVALID");
+    }
+
+    if (payload.sessionVersion !== user.updatedAt.toISOString()) {
+      return sendAuthError(res, "Session expired. Please sign in again.", "SESSION_INVALID");
     }
 
     req.user = {
@@ -44,23 +58,32 @@ export const authenticate = async (
       username: user.username,
       name: user.name,
       forcePasswordChange: user.forcePasswordChange,
+      permissions: await getPermissionsForRole(user.role as UserRoleValue),
     };
     next();
   } catch (_error) {
-    return res.status(401).json({ message: "Invalid token" });
+    return sendAuthError(res, "Invalid token", "TOKEN_INVALID");
   }
 };
 
 export const authorize = (...roles: UserRoleValue[]) => {
   return (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     if (!req.user) {
-      return res.status(401).json({ message: "Unauthorized" });
+      return sendAuthError(res, "Unauthorized", "UNAUTHORIZED");
     }
 
     if (!roles.includes(req.user.role)) {
-      return res.status(403).json({ message: "Forbidden" });
+      return sendAuthError(res, "Forbidden", "FORBIDDEN", 403);
     }
 
     next();
   };
+};
+
+export const requireActiveUser = (user?: AuthenticatedUser) => {
+  if (!user) {
+    throw new AppError("Unauthorized", 401, "UNAUTHORIZED");
+  }
+
+  return user;
 };

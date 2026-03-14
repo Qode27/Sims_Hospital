@@ -11,6 +11,9 @@ enum UserRole {
   ADMIN
   RECEPTION
   DOCTOR
+  BILLING
+  PHARMACY
+  LAB_TECHNICIAN
 }
 
 enum Gender {
@@ -35,6 +38,7 @@ enum PaymentMode {
   CASH
   UPI
   CARD
+  INSURANCE
 }
 
 enum InvoiceItemCategory {
@@ -47,114 +51,145 @@ enum InvoiceItemCategory {
 
 enum IPDAdmissionStatus {
   ADMITTED
+  UNDER_TREATMENT
+  RECOVERED
   DISCHARGED
 }
 
+enum PaymentStatus {
+  PENDING
+  PARTIAL
+  PAID
+}
+
+enum InvoiceType {
+  OPD
+  IPD
+  PHARMACY
+  LAB
+  GENERAL
+}
+
+enum BedStatus {
+  AVAILABLE
+  OCCUPIED
+  MAINTENANCE
+  RESERVED
+}
+
 model User {
-  id                  Int              @id @default(autoincrement())
-  name                String
-  username            String           @unique
-  passwordHash        String
-  role                UserRole
-  active              Boolean          @default(true)
-  forcePasswordChange Boolean   @default(false)
-  createdAt           DateTime         @default(now())
-  updatedAt           DateTime         @updatedAt
-  createdPatients     Patient[]        @relation("PatientCreatedBy")
-  doctorVisits        Visit[]          @relation("VisitDoctor")
-  createdVisits       Visit[]          @relation("VisitCreatedBy")
-  notes               Note[]
-  prescriptions       Prescription[]
-  createdInvoices     Invoice[]        @relation("InvoiceCreatedBy")
-  doctorProfile       DoctorProfile?
-  attendingAdmissions IPDAdmission[]   @relation("IPDAttendingDoctor")
-  createdAdmissions   IPDAdmission[]   @relation("IPDCreatedBy")
-  dischargedAdmissions IPDAdmission[]  @relation("IPDDischargedBy")
-  createdTransfers    OpdToIpdTransfer[] @relation("IPDTransferredBy")
+  id                   Int                @id @default(autoincrement())
+  name                 String
+  username             String             @unique
+  passwordHash         String
+  role                 UserRole
+  active               Boolean            @default(true)
+  forcePasswordChange  Boolean            @default(false)
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
+  createdPatients      Patient[]          @relation("PatientCreatedBy")
+  doctorVisits         Visit[]            @relation("VisitDoctor")
+  createdVisits        Visit[]            @relation("VisitCreatedBy")
+  notes                Note[]
+  prescriptions        Prescription[]
+  createdInvoices      Invoice[]          @relation("InvoiceCreatedBy")
+  attendingAdmissions  IPDAdmission[]     @relation("IPDAttendingDoctor")
+  createdAdmissions    IPDAdmission[]     @relation("IPDCreatedBy")
+  dischargedAdmissions IPDAdmission[]     @relation("IPDDischargedBy")
+  createdTransfers     OpdToIpdTransfer[] @relation("IPDTransferredBy")
+  doctorProfile        DoctorProfile?
+  recordedPayments     Payment[]          @relation("PaymentRecordedBy")
+  doctorInvoices       Invoice[]          @relation("InvoiceDoctor")
+  auditLogs            AuditLog[]         @relation("AuditActor")
 }
 
 model Patient {
-  id            Int       @id @default(autoincrement())
-  mrn           String    @unique
-  name          String
-  dob           DateTime?
-  age           Int?
-  gender        Gender
-  phone         String
-  address       String
-  idProof       String?
-  active        Boolean   @default(true)
-  createdById   Int?
-  createdBy     User?     @relation("PatientCreatedBy", fields: [createdById], references: [id])
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-  visits        Visit[]
-  prescriptions Prescription[]
-  ipdAdmissions IPDAdmission[]
+  id              Int                @id @default(autoincrement())
+  mrn             String             @unique
+  name            String
+  dob             DateTime?
+  age             Int?
+  gender          Gender
+  phone           String
+  address         String
+  idProof         String?
+  active          Boolean            @default(true)
+  createdById     Int?
+  createdBy       User?              @relation("PatientCreatedBy", fields: [createdById], references: [id])
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+  visits          Visit[]
+  prescriptions   Prescription[]
+  ipdAdmissions   IPDAdmission[]
   opdIpdTransfers OpdToIpdTransfer[]
+  invoices        Invoice[]
+  payments        Payment[]
+  auditLogs       AuditLog[]         @relation("AuditPatient")
 
   @@index([name])
   @@index([phone])
 }
 
 model Visit {
-  id               Int           @id @default(autoincrement())
+  id               Int               @id @default(autoincrement())
   patientId        Int
   doctorId         Int
   createdById      Int?
-  type             VisitType     @default(OPD)
-  status           VisitStatus   @default(SCHEDULED)
-  consultationFee  Float         @default(0)
+  type             VisitType         @default(OPD)
+  status           VisitStatus       @default(SCHEDULED)
+  consultationFee  Float             @default(0)
   reason           String?
-  scheduledAt      DateTime      @default(now())
+  scheduledAt      DateTime          @default(now())
   completedAt      DateTime?
-  createdAt        DateTime      @default(now())
-  updatedAt        DateTime      @updatedAt
-  patient          Patient       @relation(fields: [patientId], references: [id])
-  doctor           User          @relation("VisitDoctor", fields: [doctorId], references: [id])
-  createdBy        User?         @relation("VisitCreatedBy", fields: [createdById], references: [id])
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  patient          Patient           @relation(fields: [patientId], references: [id])
+  doctor           User              @relation("VisitDoctor", fields: [doctorId], references: [id])
+  createdBy        User?             @relation("VisitCreatedBy", fields: [createdById], references: [id])
   notes            Note[]
   prescription     Prescription?
   invoice          Invoice?
   ipdAdmission     IPDAdmission?
   opdToIpdTransfer OpdToIpdTransfer? @relation("OpdVisitTransfer")
+  auditLogs        AuditLog[]        @relation("AuditVisit")
 
   @@index([patientId])
   @@index([doctorId])
   @@index([scheduledAt])
+  @@index([type, status, scheduledAt])
 }
 
 model Note {
-  id         Int      @id @default(autoincrement())
-  visitId    Int
-  doctorId   Int
-  text       String
-  createdAt  DateTime @default(now())
-  visit      Visit    @relation(fields: [visitId], references: [id])
-  doctor     User     @relation(fields: [doctorId], references: [id])
+  id        Int      @id @default(autoincrement())
+  visitId   Int
+  doctorId  Int
+  text      String
+  createdAt DateTime @default(now())
+  visit     Visit    @relation(fields: [visitId], references: [id])
+  doctor    User     @relation(fields: [doctorId], references: [id])
 
   @@index([visitId])
 }
 
 model Prescription {
-  id         Int      @id @default(autoincrement())
-  visitId    Int      @unique
-  patientId  Int?
-  doctorId   Int
-  invoiceId  Int?     @unique
-  printedAt  DateTime?
-  templateType String @default("OP_CASE_SHEET")
-  notes      String?
-  symptoms   String?
-  diagnosis  String?
-  advice     String?
-  itemsJson  String
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-  visit      Visit    @relation(fields: [visitId], references: [id])
-  patient    Patient? @relation(fields: [patientId], references: [id])
-  doctor     User     @relation(fields: [doctorId], references: [id])
-  invoice    Invoice? @relation(fields: [invoiceId], references: [id])
+  id           Int      @id @default(autoincrement())
+  visitId       Int      @unique
+  patientId     Int?
+  doctorId      Int
+  invoiceId     Int?     @unique
+  printedAt     DateTime?
+  templateType  String   @default("OP_CASE_SHEET")
+  notes         String?
+  symptoms      String?
+  diagnosis     String?
+  advice        String?
+  itemsJson     String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  visit         Visit    @relation(fields: [visitId], references: [id])
+  patient       Patient? @relation(fields: [patientId], references: [id])
+  doctor        User     @relation(fields: [doctorId], references: [id])
+  invoice       Invoice? @relation(fields: [invoiceId], references: [id])
 
   @@index([patientId])
   @@index([invoiceId])
@@ -164,23 +199,34 @@ model Invoice {
   id            Int            @id @default(autoincrement())
   visitId        Int            @unique
   invoiceNo      String         @unique
+  patientId      Int
+  doctorId       Int
+  invoiceType    InvoiceType    @default(OPD)
   subtotal       Float
   discount       Float          @default(0)
   tax            Float          @default(0)
   total          Float
   paidAmount     Float
   dueAmount      Float
-  paymentMode    PaymentMode
+  paymentStatus  PaymentStatus  @default(PENDING)
+  paymentMode    PaymentMode?
   notes          String?
   createdById    Int?
-  createdBy      User?          @relation("InvoiceCreatedBy", fields: [createdById], references: [id])
   createdAt      DateTime       @default(now())
   updatedAt      DateTime       @updatedAt
+  createdBy      User?          @relation("InvoiceCreatedBy", fields: [createdById], references: [id])
+  patient        Patient        @relation(fields: [patientId], references: [id])
+  doctor         User           @relation("InvoiceDoctor", fields: [doctorId], references: [id])
   visit          Visit          @relation(fields: [visitId], references: [id])
   items          InvoiceItem[]
+  payments       Payment[]
   prescription   Prescription?
+  auditLogs      AuditLog[]     @relation("AuditInvoice")
 
   @@index([createdAt])
+  @@index([patientId, createdAt])
+  @@index([doctorId, createdAt])
+  @@index([paymentStatus, createdAt])
 }
 
 model InvoiceItem {
@@ -199,18 +245,20 @@ model InvoiceItem {
 }
 
 model HospitalSettings {
-  id                   Int      @id @default(1)
-  hospitalName         String
-  address              String
-  phone                String
-  gstin                String?
-  logoPath             String?
-  defaultConsultationFee Float  @default(500)
-  invoicePrefix        String   @default("SIMS")
-  invoiceSequence      Int      @default(1)
-  footerNote           String?
-  kansaltLogoPath      String?
-  updatedAt            DateTime @updatedAt
+  id                     Int      @id @default(1)
+  hospitalName           String
+  address                String
+  phone                  String
+  gstin                  String?
+  logoPath               String?
+  defaultConsultationFee Float    @default(500)
+  invoicePrefix          String   @default("SIMS")
+  invoiceSequence        Int      @default(1)
+  footerNote             String?
+  kansaltLogoPath        String?
+  currencyCode           String   @default("INR")
+  timezone               String   @default("Asia/Kolkata")
+  updatedAt              DateTime @updatedAt
 }
 
 model DoctorProfile {
@@ -218,6 +266,7 @@ model DoctorProfile {
   userId             Int      @unique
   qualification      String
   specialization     String
+  experienceYears    Int      @default(0)
   registrationNumber String?
   phone              String?
   email              String?
@@ -232,6 +281,8 @@ model IPDAdmission {
   visitId           Int                @unique
   patientId         Int
   attendingDoctorId Int
+  roomId            Int?
+  bedId             Int?
   status            IPDAdmissionStatus @default(ADMITTED)
   admittedAt        DateTime           @default(now())
   dischargedAt      DateTime?
@@ -250,27 +301,129 @@ model IPDAdmission {
   createdBy         User?              @relation("IPDCreatedBy", fields: [createdById], references: [id])
   dischargedBy      User?              @relation("IPDDischargedBy", fields: [dischargedById], references: [id])
   transfer          OpdToIpdTransfer?
+  roomAllocation    Room?              @relation("RoomAdmissions", fields: [roomId], references: [id])
+  bedAllocation     Bed?               @relation("BedAdmissions", fields: [bedId], references: [id])
+  auditLogs         AuditLog[]         @relation("AuditAdmission")
 
   @@index([patientId])
   @@index([attendingDoctorId])
   @@index([status])
   @@index([admittedAt])
+  @@index([bedId, status])
 }
 
 model OpdToIpdTransfer {
-  id             Int          @id @default(autoincrement())
-  opdVisitId     Int          @unique
-  ipdAdmissionId Int          @unique
-  patientId      Int
+  id              Int          @id @default(autoincrement())
+  opdVisitId      Int          @unique
+  ipdAdmissionId  Int          @unique
+  patientId       Int
   transferredById Int
-  notes          String?
-  createdAt      DateTime     @default(now())
-  opdVisit       Visit        @relation("OpdVisitTransfer", fields: [opdVisitId], references: [id], onDelete: Cascade)
-  ipdAdmission   IPDAdmission @relation(fields: [ipdAdmissionId], references: [id], onDelete: Cascade)
-  patient        Patient      @relation(fields: [patientId], references: [id])
-  transferredBy  User         @relation("IPDTransferredBy", fields: [transferredById], references: [id])
+  notes           String?
+  createdAt       DateTime     @default(now())
+  opdVisit        Visit        @relation("OpdVisitTransfer", fields: [opdVisitId], references: [id], onDelete: Cascade)
+  ipdAdmission    IPDAdmission @relation(fields: [ipdAdmissionId], references: [id], onDelete: Cascade)
+  patient         Patient      @relation(fields: [patientId], references: [id])
+  transferredBy   User         @relation("IPDTransferredBy", fields: [transferredById], references: [id])
 
   @@index([patientId])
   @@index([transferredById])
   @@index([createdAt])
+}
+
+model Room {
+  id          Int            @id @default(autoincrement())
+  ward        String
+  name        String
+  floor       String?
+  description String?
+  active      Boolean        @default(true)
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  beds        Bed[]
+  admissions  IPDAdmission[] @relation("RoomAdmissions")
+
+  @@unique([ward, name])
+  @@index([ward, active])
+}
+
+model Bed {
+  id         Int            @id @default(autoincrement())
+  roomId      Int
+  bedNumber   String
+  status      BedStatus      @default(AVAILABLE)
+  notes       String?
+  active      Boolean        @default(true)
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  room        Room           @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  admissions  IPDAdmission[] @relation("BedAdmissions")
+
+  @@unique([roomId, bedNumber])
+  @@index([status, active])
+}
+
+model Payment {
+  id           Int        @id @default(autoincrement())
+  invoiceId     Int
+  patientId     Int
+  amount        Float
+  paymentMode   PaymentMode
+  referenceNo   String?
+  notes         String?
+  receivedAt    DateTime  @default(now())
+  recordedById  Int?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  invoice       Invoice   @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  patient       Patient   @relation(fields: [patientId], references: [id])
+  recordedBy    User?     @relation("PaymentRecordedBy", fields: [recordedById], references: [id])
+
+  @@index([invoiceId, receivedAt])
+  @@index([patientId, receivedAt])
+}
+
+model Permission {
+  id          Int              @id @default(autoincrement())
+  code        String           @unique
+  name        String
+  description String?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  roleLinks   RolePermission[]
+}
+
+model RolePermission {
+  id           Int        @id @default(autoincrement())
+  role         UserRole
+  permissionId Int
+  createdAt    DateTime   @default(now())
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@unique([role, permissionId])
+  @@index([permissionId])
+}
+
+model AuditLog {
+  id           Int           @id @default(autoincrement())
+  actorId       Int?
+  action        String
+  entityType    String
+  entityId      String
+  description   String?
+  ipAddress     String?
+  metadataJson  String?
+  patientId     Int?
+  visitId       Int?
+  invoiceId     Int?
+  admissionId   Int?
+  createdAt     DateTime     @default(now())
+  actor         User?        @relation("AuditActor", fields: [actorId], references: [id])
+  patient       Patient?     @relation("AuditPatient", fields: [patientId], references: [id])
+  visit         Visit?       @relation("AuditVisit", fields: [visitId], references: [id])
+  invoice       Invoice?     @relation("AuditInvoice", fields: [invoiceId], references: [id])
+  admission     IPDAdmission? @relation("AuditAdmission", fields: [admissionId], references: [id])
+
+  @@index([entityType, entityId, createdAt])
+  @@index([patientId, createdAt])
+  @@index([actorId, createdAt])
 }

@@ -1,32 +1,35 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+﻿import { useEffect, useRef, useState } from "react";
+import { Link, useLocation, useParams } from "react-router-dom";
 import toast from "react-hot-toast";
 import { getErrorMessage } from "../../api/client";
 import { prescriptionApi, settingsApi, visitApi } from "../../api/services";
+import type { HospitalSettings, Visit } from "../../types";
+import { HospitalBrand } from "../../components/branding/HospitalBrand";
 import { Button } from "../../components/ui/Button";
 import { Loader } from "../../components/ui/Loader";
 import { formatDateTime } from "../../utils/format";
 import "../../styles/print.css";
 
+type PrescriptionVisit = Visit & {
+  invoice?: { invoiceNo: string; dueAmount: number } | null;
+  prescription?: { id: number } | null;
+  vitals?: Record<string, string | number | null | undefined>;
+};
+
 const fieldOrBlank = (value: unknown) => {
   if (value === null || value === undefined) return "";
-  const text = String(value).trim();
-  return text;
+  return String(value).trim();
 };
 
 export const PrescriptionPrintPage = () => {
+  const location = useLocation();
   const params = useParams();
   const visitId = Number(params.visitId);
+  const backTo = (location.state as { backTo?: string } | null)?.backTo ?? "/prescriptions";
   const [loading, setLoading] = useState(true);
-  const [visit, setVisit] = useState<any | null>(null);
-  const [settings, setSettings] = useState<any | null>(null);
+  const [visit, setVisit] = useState<PrescriptionVisit | null>(null);
+  const [settings, setSettings] = useState<HospitalSettings | null>(null);
   const markedPrintedRef = useRef(false);
-
-  const uploadBaseUrl = import.meta.env.VITE_UPLOAD_BASE_URL || window.location.origin;
-  const logoSrc = useMemo(() => {
-    if (!settings?.logoPath) return null;
-    return `${uploadBaseUrl}${settings.logoPath}`;
-  }, [settings?.logoPath, uploadBaseUrl]);
 
   useEffect(() => {
     document.body.setAttribute("data-print-format", "a4");
@@ -40,7 +43,7 @@ export const PrescriptionPrintPage = () => {
       setLoading(true);
       try {
         const [visitRes, settingsRes] = await Promise.all([visitApi.get(visitId), settingsApi.get()]);
-        setVisit(visitRes.data.data);
+        setVisit(visitRes.data.data as PrescriptionVisit);
         setSettings(settingsRes.data.data);
       } catch (error) {
         toast.error(getErrorMessage(error));
@@ -61,7 +64,7 @@ export const PrescriptionPrintPage = () => {
       try {
         await prescriptionApi.markPrinted(visit.prescription.id);
       } catch {
-        // non-blocking for print
+        // Print should still continue if tracking fails.
       }
     };
 
@@ -84,7 +87,7 @@ export const PrescriptionPrintPage = () => {
     return <div className="p-6">Prescription not available for this visit yet.</div>;
   }
 
-  const rawVitals = (visit as any).vitals || {};
+  const rawVitals = visit.vitals || {};
   const pulse = fieldOrBlank(rawVitals.pulse);
   const temp = fieldOrBlank(rawVitals.temperature || rawVitals.temp);
   const bp = fieldOrBlank(rawVitals.bp || (rawVitals.bpSystolic && rawVitals.bpDiastolic ? `${rawVitals.bpSystolic}/${rawVitals.bpDiastolic}` : ""));
@@ -93,14 +96,14 @@ export const PrescriptionPrintPage = () => {
 
   return (
     <div className="mx-auto max-w-5xl space-y-4 prescription-print-shell">
-      <div className="print-controls no-print flex items-center justify-between rounded-xl border bg-white p-4 shadow-panel">
+      <div className="print-controls no-print flex items-center justify-between rounded-[28px] border border-slate-200 bg-white p-4 shadow-panel">
         <div>
           <h1 className="text-lg font-semibold">Prescription Sheet</h1>
-          <p className="text-sm text-slate-500">A4 OP Case Sheet Style</p>
+          <p className="text-sm text-slate-500">Professional A4 prescription layout for doctor handwriting</p>
         </div>
         <div className="flex gap-2">
           <Button onClick={() => window.print()}>Print Prescription</Button>
-          <Link to="/prescriptions"><Button variant="secondary">Back</Button></Link>
+          <Link to={backTo}><Button variant="secondary">Back</Button></Link>
         </div>
       </div>
 
@@ -109,13 +112,14 @@ export const PrescriptionPrintPage = () => {
 
         <header className="prescription-header">
           <div className="prescription-header-left">
-            <div className="prescription-logo-box">
-              {logoSrc ? <img src={logoSrc} alt="SIMS Hospital Logo" className="prescription-logo" /> : null}
-            </div>
             <div>
-              <h2 className="prescription-hospital-name">{settings.hospitalName || "SIMS Hospital"}</h2>
+              <HospitalBrand
+                className="prescription-brand"
+                logoClassName="prescription-brand__logo"
+                titleClassName="prescription-hospital-name"
+                subtitleClassName="prescription-brand__subtitle"
+              />
               <p className="prescription-hospital-meta">{settings.address || "Hospital Address"}</p>
-              <p className="prescription-hospital-meta">Email: info@simshospital.com</p>
               <p className="prescription-hospital-meta">Contact: {settings.phone || "-"}</p>
             </div>
           </div>
@@ -133,7 +137,7 @@ export const PrescriptionPrintPage = () => {
           <div className="line-field"><span className="label">MRN:</span> <span className="line-fill">{visit.patient.mrn || ""}</span></div>
 
           <div className="line-field"><span className="label">Pulse:</span> <span className="line-fill">{pulse}</span><span className="suffix">/Min.</span></div>
-          <div className="line-field"><span className="label">Temp:</span> <span className="line-fill">{temp}</span><span className="suffix">�C</span></div>
+          <div className="line-field"><span className="label">Temp:</span> <span className="line-fill">{temp}</span><span className="suffix">°C</span></div>
           <div className="line-field"><span className="label">B.P:</span> <span className="line-fill">{bp}</span></div>
           <div className="line-field"><span className="label">SPO2:</span> <span className="line-fill">{spo2}</span><span className="suffix">%</span></div>
           <div className="line-field"><span className="label">Weight:</span> <span className="line-fill">{weight}</span><span className="suffix">Kg</span></div>
@@ -154,10 +158,13 @@ export const PrescriptionPrintPage = () => {
           </div>
         </section>
 
-        <footer className="prescription-footer-row">
-          <p className="visit-meta">Visit: #{visit.id} | {formatDateTime(visit.scheduledAt)}</p>
-          <div className="doctor-sign-box">
-            <div className="sign-line" />
+        <div className="prescription-footer-row">
+          <p className="visit-meta">Visit: #{visit.id} | Bill ID: {visit.invoice.invoiceNo} | {formatDateTime(visit.scheduledAt)}</p>
+        </div>
+        <footer className="prescription-sheet__footer">
+          <p className="prescription-sheet__thank-you">{settings.footerNote || "Thank you for choosing SIMS Hospital."}</p>
+          <div className="prescription-sheet__signature">
+            <div className="invoice-sheet__signature-line" />
             <p>Doctor Signature</p>
           </div>
         </footer>

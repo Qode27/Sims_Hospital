@@ -1,30 +1,44 @@
-﻿import fs from "node:fs";
+import fs from "node:fs";
+import path from "node:path";
 import { Router } from "express";
 import multer from "multer";
+import type { Request } from "express";
 import { z } from "zod";
 import { env } from "../../config/env.js";
 import { prisma } from "../../db/prisma.js";
 import { authenticate, authorize } from "../../middleware/auth.js";
 import { validateBody } from "../../middleware/validate.js";
 import { asyncHandler } from "../../utils/asyncHandler.js";
+import { AppError } from "../../utils/appError.js";
 
 const router = Router();
 
 fs.mkdirSync(env.uploadDirPath, { recursive: true });
+const logoUploadDir = path.join(env.uploadDirPath, "logo");
+fs.mkdirSync(logoUploadDir, { recursive: true });
 
-const storage = multer.diskStorage({
-  destination: (_req, _file, cb) => cb(null, env.uploadDirPath),
-  filename: (_req, file, cb) => {
-    const ext = file.originalname.includes(".") ? file.originalname.slice(file.originalname.lastIndexOf(".")) : ".png";
-    const safeName = `logo-${Date.now()}${ext}`;
-    cb(null, safeName);
-  },
-});
+const buildLogoStorage = (folderPath: string, filePrefix: string) =>
+  multer.diskStorage({
+    destination: (_req, _file, cb) => cb(null, folderPath),
+    filename: (_req, file, cb) => {
+      const ext = file.originalname.includes(".") ? file.originalname.slice(file.originalname.lastIndexOf(".")).toLowerCase() : ".png";
+      const safeName = `${filePrefix}-${Date.now()}${ext}`.replace(/\s+/g, "-");
+      cb(null, safeName);
+    },
+  });
 
-const upload = multer({
-  storage,
+const allowedMimeTypes = new Set(["image/png", "image/jpeg", "image/jpg", "image/svg+xml"]);
+
+const uploadOptions = {
   limits: { fileSize: 3 * 1024 * 1024 },
-});
+  fileFilter: (_req: Request, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
+    if (!allowedMimeTypes.has(file.mimetype)) {
+      cb(new AppError("Only PNG, JPG, JPEG and SVG files are supported", 400));
+      return;
+    }
+    cb(null, true);
+  },
+};
 
 const settingsSchema = z.object({
   hospitalName: z.string().min(2),
@@ -35,8 +49,22 @@ const settingsSchema = z.object({
   invoicePrefix: z.string().min(2).max(12),
   invoiceSequence: z.number().int().min(1),
   footerNote: z.string().max(300).optional().nullable(),
-  kansaltLogoPath: z.string().max(300).optional().nullable(),
 });
+
+const ensureSettings = async () =>
+  (await prisma.hospitalSettings.findUnique({ where: { id: 1 } })) ??
+  prisma.hospitalSettings.create({
+    data: {
+      id: 1,
+      hospitalName: "SIMS Hospital",
+      address: "Update hospital address",
+      phone: "0000000000",
+      invoicePrefix: "SIMS",
+      defaultConsultationFee: 500,
+      footerNote: "Thank you for choosing SIMS Hospital.",
+      kansaltLogoPath: "/uploads/kansalt-full-logo.svg",
+    },
+  });
 
 router.get(
   "/public",
@@ -48,6 +76,7 @@ router.get(
         hospitalName: true,
         logoPath: true,
         kansaltLogoPath: true,
+        updatedAt: true,
       },
     });
 
@@ -60,20 +89,7 @@ router.use(authenticate);
 router.get(
   "/",
   asyncHandler(async (_req, res) => {
-    const settings =
-      (await prisma.hospitalSettings.findUnique({ where: { id: 1 } })) ??
-      (await prisma.hospitalSettings.create({
-        data: {
-          hospitalName: "SIMS Hospital",
-          address: "Update hospital address",
-          phone: "0000000000",
-          invoicePrefix: "SIMS",
-          defaultConsultationFee: 500,
-          footerNote: "Thank you for choosing SIMS Hospital.",
-          kansaltLogoPath: "/uploads/kansalt-full-logo.svg",
-        },
-      }));
-
+    const settings = await ensureSettings();
     res.json({ data: settings });
   }),
 );
@@ -84,11 +100,11 @@ router.put(
   validateBody(settingsSchema),
   asyncHandler(async (req, res) => {
     const payload = req.body as z.infer<typeof settingsSchema>;
+    const existing = await ensureSettings();
 
-    const settings = await prisma.hospitalSettings.upsert({
-      where: { id: 1 },
-      create: {
-        id: 1,
+    const settings = await prisma.hospitalSettings.update({
+      where: { id: existing.id },
+      data: {
         hospitalName: payload.hospitalName,
         address: payload.address,
         phone: payload.phone,
@@ -97,18 +113,6 @@ router.put(
         invoicePrefix: payload.invoicePrefix,
         invoiceSequence: payload.invoiceSequence,
         footerNote: payload.footerNote ?? null,
-        kansaltLogoPath: payload.kansaltLogoPath ?? null,
-      },
-      update: {
-        hospitalName: payload.hospitalName,
-        address: payload.address,
-        phone: payload.phone,
-        gstin: payload.gstin ?? null,
-        defaultConsultationFee: payload.defaultConsultationFee,
-        invoicePrefix: payload.invoicePrefix,
-        invoiceSequence: payload.invoiceSequence,
-        footerNote: payload.footerNote ?? null,
-        kansaltLogoPath: payload.kansaltLogoPath ?? null,
       },
     });
 
@@ -119,67 +123,33 @@ router.put(
 router.post(
   "/kansalt-logo",
   authorize("ADMIN"),
-  upload.single("logo"),
   asyncHandler(async (req, res) => {
-    if (!req.file) {
-      res.status(400).json({ message: "Logo file is required" });
-      return;
-    }
-
-    const kansaltLogoPath = `/${env.uploadUrlPath}/${req.file.filename}`.replace(/\\/g, "/");
-
-    const settings = await prisma.hospitalSettings.upsert({
-      where: { id: 1 },
-      create: {
-        id: 1,
-        hospitalName: "SIMS Hospital",
-        address: "Update hospital address",
-        phone: "0000000000",
-        invoicePrefix: "SIMS",
-        defaultConsultationFee: 500,
-        footerNote: "Thank you for choosing SIMS Hospital.",
-        kansaltLogoPath,
-      },
-      update: {
-        kansaltLogoPath,
-      },
-    });
-
-    res.json({ data: settings });
+    void req;
+    void res;
+    throw new AppError("Footer branding is managed by the application and cannot be changed here", 400, "FOOTER_BRANDING_LOCKED");
   }),
 );
 
 router.post(
   "/logo",
   authorize("ADMIN"),
-  upload.single("logo"),
+  multer({ storage: buildLogoStorage(logoUploadDir, "logo"), ...uploadOptions }).single("logo"),
   asyncHandler(async (req, res) => {
     if (!req.file) {
-      res.status(400).json({ message: "Logo file is required" });
-      return;
+      throw new AppError("Logo file is required", 400, "LOGO_FILE_REQUIRED");
     }
 
-    const logoPath = `/${env.uploadUrlPath}/${req.file.filename}`.replace(/\\/g, "/");
+    const settings = await ensureSettings();
+    const logoPath = `/${env.uploadUrlPath}/logo/${req.file.filename}`.replace(/\\/g, "/");
 
-    const settings = await prisma.hospitalSettings.upsert({
-      where: { id: 1 },
-      create: {
-        id: 1,
-        hospitalName: "SIMS Hospital",
-        address: "Update hospital address",
-        phone: "0000000000",
-        invoicePrefix: "SIMS",
-        defaultConsultationFee: 500,
-        footerNote: "Thank you for choosing SIMS Hospital.",
-        kansaltLogoPath: "/uploads/kansalt-full-logo.svg",
-        logoPath,
-      },
-      update: {
+    const updated = await prisma.hospitalSettings.update({
+      where: { id: settings.id },
+      data: {
         logoPath,
       },
     });
 
-    res.json({ data: settings });
+    res.json({ data: updated });
   }),
 );
 

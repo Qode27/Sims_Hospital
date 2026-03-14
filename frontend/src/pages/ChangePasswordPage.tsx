@@ -7,7 +7,7 @@ import { Input } from "../components/ui/Input";
 import { useAuth } from "../context/AuthContext";
 
 export const ChangePasswordPage = () => {
-  const { user, refreshMe } = useAuth();
+  const { user, refreshMe, applySessionToken } = useAuth();
   const [oldPassword, setOldPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -23,7 +23,10 @@ export const ChangePasswordPage = () => {
 
     setSaving(true);
     try {
-      await authApi.changePassword({ oldPassword, newPassword });
+      const res = await authApi.changePassword({ oldPassword, newPassword });
+      if (res.data.token) {
+        applySessionToken(res.data.token);
+      }
       await refreshMe();
       toast.success("Password updated. Continue to dashboard.");
     } catch (error) {

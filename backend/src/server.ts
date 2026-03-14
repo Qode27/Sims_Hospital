@@ -1,13 +1,14 @@
-﻿import { app } from "./app.js";
+import { app } from "./app.js";
 import { initializeRuntime } from "./bootstrap/startup.js";
 import { env } from "./config/env.js";
 import { prisma } from "./db/prisma.js";
+import { logError, logInfo } from "./utils/logger.js";
 
 const boot = async () => {
   await initializeRuntime();
 
   const server = app.listen(env.port, () => {
-    console.log(`SIMS Hospital backend running on http://127.0.0.1:${env.port}`);
+    logInfo("server.started", { port: env.port, nodeEnv: env.nodeEnv });
   });
 
   const shutdown = async () => {
@@ -22,6 +23,9 @@ const boot = async () => {
 };
 
 boot().catch((error) => {
-  console.error("Backend startup failed", error);
+  logError("server.startup_failed", {
+    message: error instanceof Error ? error.message : "Unknown startup error",
+    stack: error instanceof Error ? error.stack : undefined,
+  });
   process.exit(1);
 });

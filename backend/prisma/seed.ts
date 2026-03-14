@@ -85,7 +85,7 @@ async function main() {
       invoicePrefix: "SIMS",
       invoiceSequence: 1,
       footerNote: "Thank you for choosing SIMS Hospital.",
-      kansaltLogoPath: "/uploads/kansalt-full-logo.svg",
+      kansaltLogoPath: "/assets/branding/kansalt-logo.svg",
       currencyCode: "INR",
       timezone: "Asia/Kolkata",
     },

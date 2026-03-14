@@ -1,4 +1,5 @@
 import clsx from "clsx";
+import { buildPublicAssetPath } from "../../utils/branding";
 
 type PoweredByKansaltProps = {
   className?: string;
@@ -17,7 +18,7 @@ export const PoweredByKansalt = ({
     <div className={clsx("powered-by-kansalt", stacked && "powered-by-kansalt--stacked", className)}>
       <span className={clsx("powered-by-kansalt__label", labelClassName)}>Powered by</span>
       <img
-        src="/assets/branding/kansalt-logo.svg"
+        src={buildPublicAssetPath("assets/branding/kansalt-logo.svg")}
         alt="Kansalt logo"
         className={clsx("powered-by-kansalt__logo", logoClassName)}
       />

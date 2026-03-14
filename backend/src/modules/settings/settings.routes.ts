@@ -62,7 +62,7 @@ const ensureSettings = async () =>
       invoicePrefix: "SIMS",
       defaultConsultationFee: 500,
       footerNote: "Thank you for choosing SIMS Hospital.",
-      kansaltLogoPath: "/uploads/kansalt-full-logo.svg",
+      kansaltLogoPath: "/assets/branding/kansalt-logo.svg",
     },
   });
 

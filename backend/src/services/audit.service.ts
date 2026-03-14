@@ -1,6 +1,7 @@
 import type { Prisma, PrismaClient } from "@prisma/client";
 import type { Request } from "express";
 import { prisma } from "../db/prisma.js";
+import { logError } from "../utils/logger.js";
 
 type AuditInput = {
   actorId?: number | null;
@@ -20,19 +21,29 @@ type AuditInput = {
 export const writeAuditLog = async (input: AuditInput) => {
   const client = input.client ?? prisma;
 
-  await client.auditLog.create({
-    data: {
-      actorId: input.actorId ?? null,
+  try {
+    await client.auditLog.create({
+      data: {
+        actorId: input.actorId ?? null,
+        action: input.action,
+        entityType: input.entityType,
+        entityId: String(input.entityId),
+        description: input.description ?? null,
+        ipAddress: input.request?.ip ?? input.request?.socket.remoteAddress ?? null,
+        metadataJson: input.metadata ? JSON.stringify(input.metadata) : null,
+        patientId: input.patientId ?? null,
+        visitId: input.visitId ?? null,
+        invoiceId: input.invoiceId ?? null,
+        admissionId: input.admissionId ?? null,
+      },
+    });
+  } catch (error) {
+    logError("audit.write.failed", {
       action: input.action,
       entityType: input.entityType,
       entityId: String(input.entityId),
-      description: input.description ?? null,
-      ipAddress: input.request?.ip ?? input.request?.socket.remoteAddress ?? null,
-      metadataJson: input.metadata ? JSON.stringify(input.metadata) : null,
-      patientId: input.patientId ?? null,
-      visitId: input.visitId ?? null,
-      invoiceId: input.invoiceId ?? null,
-      admissionId: input.admissionId ?? null,
-    },
-  });
+      actorId: input.actorId ?? null,
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
 };

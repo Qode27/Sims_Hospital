@@ -1,5 +1,13 @@
 import axios from "axios";
 
+const normalizeBasePath = (value?: string) => {
+  if (!value || value === "/") {
+    return "";
+  }
+
+  return value.endsWith("/") ? value.slice(0, -1) : value;
+};
+
 type ApiErrorPayload = {
   error?: boolean;
   message?: string;
@@ -11,7 +19,7 @@ const runtimeBase =
   (import.meta.env.DEV
     ? "http://localhost:4000/api"
     : typeof window !== "undefined"
-      ? `${window.location.origin}/api`
+      ? `${window.location.origin}${normalizeBasePath(import.meta.env.BASE_URL)}/api`
       : "http://localhost:4000/api");
 
 const baseURL = runtimeBase;

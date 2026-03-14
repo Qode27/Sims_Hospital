@@ -26,6 +26,14 @@ const sqlitePathFromUrl = (databaseUrl: string) => {
   return path.resolve(process.cwd(), raw);
 };
 
+const ensureFolders = () => {
+  fs.mkdirSync(path.dirname(sqlitePathFromUrl(env.databaseUrl)), { recursive: true });
+  fs.mkdirSync(env.uploadDirPath, { recursive: true });
+  fs.mkdirSync(path.join(env.uploadDirPath, "logo"), { recursive: true });
+  fs.mkdirSync(path.join(env.uploadDirPath, "branding"), { recursive: true });
+  fs.mkdirSync(env.logDir, { recursive: true });
+};
+
 const splitSqlStatements = (sql: string) => {
   const withoutComments = sql
     .split(/\r?\n/)
@@ -51,14 +59,6 @@ const isIgnorableSqliteError = (error: unknown) => {
   );
 };
 
-const ensureFolders = () => {
-  fs.mkdirSync(path.dirname(sqlitePathFromUrl(env.databaseUrl)), { recursive: true });
-  fs.mkdirSync(env.uploadDirPath, { recursive: true });
-  fs.mkdirSync(path.join(env.uploadDirPath, "logo"), { recursive: true });
-  fs.mkdirSync(path.join(env.uploadDirPath, "branding"), { recursive: true });
-  fs.mkdirSync(env.logDir, { recursive: true });
-};
-
 const ensureMigrationLedger = async (client: PrismaClient) => {
   await client.$executeRawUnsafe(`
     CREATE TABLE IF NOT EXISTS "__sims_migrations" (
@@ -69,7 +69,8 @@ const ensureMigrationLedger = async (client: PrismaClient) => {
   `);
 };
 
-const applyMigrations = async (client: PrismaClient) => {
+// Used only for local/test SQLite bootstrapping. Production deploys must use `prisma migrate deploy`.
+export const applyLocalSqliteMigrations = async (client: PrismaClient = prisma) => {
   await ensureMigrationLedger(client);
 
   const appliedRows = (await client.$queryRawUnsafe(
@@ -133,7 +134,7 @@ const ensureDefaultSettings = async (client: PrismaClient) => {
       invoiceSequence: 1,
       defaultConsultationFee: 500,
       footerNote: "Thank you for choosing SIMS Hospital.",
-      kansaltLogoPath: "/uploads/kansalt-full-logo.svg",
+      kansaltLogoPath: "/assets/branding/kansalt-logo.svg",
       currencyCode: "INR",
       timezone: "Asia/Kolkata",
     },
@@ -198,8 +199,6 @@ const ensureMasterData = async (client: PrismaClient) => {
 
 export const initializeRuntime = async () => {
   ensureFolders();
-
-  await applyMigrations(prisma);
   await ensureDefaultSettings(prisma);
   await ensureDefaultAdmin(prisma);
   await ensureMasterData(prisma);

@@ -2,12 +2,13 @@ import { useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
 import { useNavigate } from "react-router-dom";
 import { getErrorMessage } from "../api/client";
+import { PoweredByKansalt } from "../components/branding/PoweredByKansalt";
 import { BrandLogo } from "../components/ui/BrandLogo";
 import { Button } from "../components/ui/Button";
 import { Input } from "../components/ui/Input";
 import { useAuth } from "../context/AuthContext";
 import { useBranding } from "../context/BrandingContext";
-import { buildAssetUrl, getBrandingVersion } from "../utils/branding";
+import { buildAssetUrl, getBrandingVersion, getDefaultHospitalLogoPath } from "../utils/branding";
 
 export const LoginPage = () => {
   const navigate = useNavigate();
@@ -18,12 +19,8 @@ export const LoginPage = () => {
   const [loading, setLoading] = useState(false);
 
   const logoSrc = useMemo(
-    () => buildAssetUrl(branding?.logoPath, getBrandingVersion(branding?.updatedAt, branding?.logoPath)),
+    () => buildAssetUrl(branding?.logoPath, getBrandingVersion(branding?.updatedAt, branding?.logoPath)) ?? getDefaultHospitalLogoPath(),
     [branding?.logoPath, branding?.updatedAt],
-  );
-  const kansaltSrc = useMemo(
-    () => buildAssetUrl(branding?.kansaltLogoPath, getBrandingVersion(branding?.updatedAt, branding?.kansaltLogoPath)),
-    [branding?.kansaltLogoPath, branding?.updatedAt],
   );
 
   const onSubmit = async (event: React.FormEvent) => {
@@ -79,10 +76,7 @@ export const LoginPage = () => {
           </p>
         </div>
 
-        <div className="flex items-center gap-2 text-blue-100">
-          {kansaltSrc ? <img src={kansaltSrc} alt="Kansalt" className="h-5 w-auto object-contain" /> : null}
-          <span>Powered by Kansalt</span>
-        </div>
+        <PoweredByKansalt className="text-blue-100" labelClassName="text-blue-100" logoClassName="h-5" />
       </div>
 
       <div className="flex items-center justify-center p-6">
@@ -115,10 +109,7 @@ export const LoginPage = () => {
             <p>Default admin login: admin / Admin@12345</p>
           </div>
 
-          <div className="mt-4 flex items-center justify-center gap-2 text-xs text-slate-500 lg:hidden">
-            {kansaltSrc ? <img src={kansaltSrc} alt="Kansalt" className="h-4 w-auto object-contain" /> : null}
-            <span>Powered by Kansalt</span>
-          </div>
+          <PoweredByKansalt className="mt-4 justify-center text-xs text-slate-500 lg:hidden" logoClassName="h-4" />
         </form>
       </div>
     </div>

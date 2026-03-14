@@ -1,4 +1,5 @@
 import clsx from "clsx";
+import { buildPublicAssetPath } from "../../utils/branding";
 
 type HospitalBrandProps = {
   className?: string;
@@ -18,7 +19,7 @@ export const HospitalBrand = ({
   return (
     <div className={clsx("hospital-brand", compact && "hospital-brand--compact", className)}>
       <img
-        src="/assets/branding/sims-logo.jpg"
+        src={buildPublicAssetPath("assets/branding/sims-logo.jpg")}
         alt="SIMS Hospital logo"
         className={clsx("hospital-brand__logo", logoClassName)}
       />

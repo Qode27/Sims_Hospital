@@ -17,6 +17,7 @@ process.env.CORS_ORIGIN = "*";
 
 type Runtime = {
   app: typeof import("../src/app.js").app;
+  applyLocalSqliteMigrations: typeof import("../src/bootstrap/startup.js").applyLocalSqliteMigrations;
   initializeRuntime: typeof import("../src/bootstrap/startup.js").initializeRuntime;
   prisma: typeof import("../src/db/prisma.js").prisma;
   hashPassword: typeof import("../src/utils/password.js").hashPassword;
@@ -50,11 +51,13 @@ const authHeaders = (token: string) => ({
 before(async () => {
   runtime = {
     app: (await import("../src/app.js")).app,
+    applyLocalSqliteMigrations: (await import("../src/bootstrap/startup.js")).applyLocalSqliteMigrations,
     initializeRuntime: (await import("../src/bootstrap/startup.js")).initializeRuntime,
     prisma: (await import("../src/db/prisma.js")).prisma,
     hashPassword: (await import("../src/utils/password.js")).hashPassword,
   };
 
+  await runtime.applyLocalSqliteMigrations(runtime.prisma);
   await runtime.initializeRuntime();
 
   const receptionPassword = "Reception@12345";

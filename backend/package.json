@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "tsx watch src/server.ts",
-    "build": "(if exist node_modules\\@prisma\\engines\\schema-engine-windows.exe set \"PRISMA_SCHEMA_ENGINE_BINARY=%cd%\\node_modules\\@prisma\\engines\\schema-engine-windows.exe\") && (if exist node_modules\\@prisma\\engines\\query_engine-windows.dll.node set \"PRISMA_QUERY_ENGINE_LIBRARY=%cd%\\node_modules\\@prisma\\engines\\query_engine-windows.dll.node\") && prisma generate && tsc -p tsconfig.json",
+    "build": "tsc -p tsconfig.json",
     "start": "node dist/src/server.js",
     "test": "tsx --test tests/**/*.test.ts",
     "prisma:generate": "prisma generate",

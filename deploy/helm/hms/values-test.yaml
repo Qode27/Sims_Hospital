@@ -13,6 +13,7 @@ backend:
   image:
     tag: latest-test
   config:
+    databaseUrl: file:/app/data/sims-test.db
     corsOrigin: https://test.kansalt.com
   persistence:
     data:

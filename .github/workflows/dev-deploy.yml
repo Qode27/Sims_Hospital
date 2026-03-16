@@ -129,7 +129,6 @@ jobs:
         run: |
           kubectl -n hms-dev create secret generic hms-backend-secrets \
             --from-literal=JWT_SECRET="${{ secrets.HMS_DEV_JWT_SECRET }}" \
-            --from-literal=DATABASE_URL="${{ secrets.HMS_DEV_DATABASE_URL }}" \
             --dry-run=client -o yaml | kubectl apply -f -
 
       - name: Deploy dev release
@@ -183,7 +182,6 @@ jobs:
         run: |
           kubectl -n hms-test create secret generic hms-backend-secrets \
             --from-literal=JWT_SECRET="${{ secrets.HMS_TEST_JWT_SECRET }}" \
-            --from-literal=DATABASE_URL="${{ secrets.HMS_TEST_DATABASE_URL }}" \
             --dry-run=client -o yaml | kubectl apply -f -
 
       - name: Deploy test release

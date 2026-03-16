@@ -124,7 +124,6 @@ jobs:
         run: |
           kubectl -n hms-prod create secret generic hms-backend-secrets \
             --from-literal=JWT_SECRET="${{ secrets.HMS_PROD_JWT_SECRET }}" \
-            --from-literal=DATABASE_URL="${{ secrets.HMS_PROD_DATABASE_URL }}" \
             --dry-run=client -o yaml | kubectl apply -f -
 
       - name: Deploy production release

@@ -49,6 +49,7 @@ backend:
   config:
     nodeEnv: production
     port: "4000"
+    databaseUrl: file:/app/data/sims-dev.db
     corsOrigin: https://dev.kansalt.com
     uploadDirPath: /app/uploads
     uploadUrlPath: uploads
@@ -113,7 +114,6 @@ secrets:
   name: hms-backend-secrets
   data:
     JWT_SECRET: ""
-    DATABASE_URL: ""
 
 podDisruptionBudget:
   enabled: false

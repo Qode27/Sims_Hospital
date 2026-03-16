@@ -20,6 +20,7 @@ backend:
   image:
     tag: latest-prod
   config:
+    databaseUrl: file:/app/data/sims-prod.db
     corsOrigin: https://hms.kansalt.com
   persistence:
     data:

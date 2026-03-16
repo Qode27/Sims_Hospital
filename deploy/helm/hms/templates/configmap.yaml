@@ -8,6 +8,7 @@ metadata:
 data:
   NODE_ENV: {{ .Values.backend.config.nodeEnv | quote }}
   PORT: {{ .Values.backend.config.port | quote }}
+  DATABASE_URL: {{ .Values.backend.config.databaseUrl | quote }}
   CORS_ORIGIN: {{ .Values.backend.config.corsOrigin | quote }}
   UPLOAD_DIR_PATH: {{ .Values.backend.config.uploadDirPath | quote }}
   UPLOAD_URL_PATH: {{ .Values.backend.config.uploadUrlPath | quote }}

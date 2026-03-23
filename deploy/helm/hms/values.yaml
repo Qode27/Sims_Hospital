@@ -39,6 +39,11 @@ frontend:
 backend:
   enabled: true
   replicaCount: 1
+  strategy:
+    type: Recreate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
   image:
     repository: ghcr.io/kansalt-com/sims-hospital-backend
     tag: latest-dev

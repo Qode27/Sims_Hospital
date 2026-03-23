@@ -145,10 +145,29 @@ jobs:
             --set backend.image.repository=${{ needs.build-and-push.outputs.backend_image }} \
             --set backend.image.tag=dev-${{ needs.build-and-push.outputs.short_sha }}
 
-      - name: Wait for dev rollout
+      - name: Wait for dev frontend rollout
+        run: kubectl -n hms-dev rollout status deployment/hms-dev-frontend --timeout=300s
+
+      - name: Wait for dev backend rollout
+        run: kubectl -n hms-dev rollout status deployment/hms-dev-backend --timeout=300s
+
+      - name: Debug dev rollout failure
+        if: failure()
         run: |
-          kubectl -n hms-dev rollout status deployment/hms-dev-frontend --timeout=180s
-          kubectl -n hms-dev rollout status deployment/hms-dev-backend --timeout=180s
+          echo "=== Deployments ==="
+          kubectl -n hms-dev get deployments
+          echo "=== ReplicaSets ==="
+          kubectl -n hms-dev get rs
+          echo "=== Pods ==="
+          kubectl -n hms-dev get pods -o wide
+          echo "=== Backend describe ==="
+          kubectl -n hms-dev describe deployment hms-dev-backend || true
+          echo "=== Backend pod describe ==="
+          kubectl -n hms-dev describe pod -l app.kubernetes.io/component=backend || true
+          echo "=== Backend logs ==="
+          kubectl -n hms-dev logs -l app.kubernetes.io/component=backend --all-containers --tail=200 || true
+          echo "=== Backend previous logs ==="
+          kubectl -n hms-dev logs -p -l app.kubernetes.io/component=backend --all-containers --tail=200 || true
 
   deploy-test:
     runs-on: ubuntu-latest

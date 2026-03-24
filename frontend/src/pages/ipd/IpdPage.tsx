@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
+import { useSearchParams } from "react-router-dom";
 import { getErrorMessage } from "../../api/client";
 import { doctorApi, ipdApi, patientApi, roomApi } from "../../api/services";
 import { Badge } from "../../components/ui/Badge";
@@ -13,14 +14,15 @@ import type { IPDAdmission, Patient, Room, User } from "../../types";
 import { formatDateTime } from "../../utils/format";
 
 export const IpdPage = () => {
+  const [searchParams] = useSearchParams();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [rows, setRows] = useState<IPDAdmission[]>([]);
   const [patients, setPatients] = useState<Patient[]>([]);
   const [doctors, setDoctors] = useState<Array<User & { active?: boolean }>>([]);
   const [rooms, setRooms] = useState<Room[]>([]);
-  const [query, setQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState("");
+  const [query, setQuery] = useState(() => searchParams.get("q") ?? "");
+  const [statusFilter, setStatusFilter] = useState(() => searchParams.get("status") ?? "");
   const [form, setForm] = useState({
     patientId: "",
     attendingDoctorId: "",
@@ -34,7 +36,6 @@ export const IpdPage = () => {
     admittedAt: "",
   });
 
-  const today = useMemo(() => new Date().toISOString().slice(0, 10), []);
   const selectedRoom = useMemo(() => rooms.find((room) => String(room.id) === form.roomId), [rooms, form.roomId]);
   const availableBeds = useMemo(
     () => (selectedRoom?.beds ?? []).filter((bed) => bed.status === "AVAILABLE" || bed.status === "RESERVED"),
@@ -45,7 +46,7 @@ export const IpdPage = () => {
     setLoading(true);
     try {
       const [ipdRes, patientRes, doctorRes, roomRes] = await Promise.all([
-        ipdApi.list({ q: query, status: statusFilter || undefined, date: today, page: 1, pageSize: 40 }),
+        ipdApi.list({ q: query, status: statusFilter || undefined, page: 1, pageSize: 40 }),
         patientApi.list({ page: 1, pageSize: 200, q: "" }),
         doctorApi.list({ active: true }),
         roomApi.list(),
@@ -121,7 +122,7 @@ export const IpdPage = () => {
     <div className="space-y-5">
       <div>
         <h1 className="text-2xl font-semibold">IPD Admissions</h1>
-        <p className="text-sm text-slate-500">Manage inpatient admissions, assign real beds, and complete discharge workflow without oversubscribing inventory.</p>
+        <p className="text-sm text-slate-500">Manage inpatient admissions, assign real beds, and see exactly which patients are currently admitted.</p>
       </div>
 
       <Card className="rounded-[28px]">

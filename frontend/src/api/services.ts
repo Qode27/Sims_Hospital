@@ -160,7 +160,7 @@ export const patientApi = {
     api.get<{ data: Patient & { visits: Visit[]; ipdAdmissions?: IPDAdmission[]; prescriptions?: Prescription[] } }>(`/patients/${id}`),
   create: (payload: PatientPayload) => api.post<{ data: Patient }>("/patients", payload),
   update: (id: number, payload: PatientPayload) => api.put<{ data: Patient }>(`/patients/${id}`, payload),
-  archive: (id: number) => api.delete(`/patients/${id}`),
+  remove: (id: number) => api.delete(`/patients/${id}`),
 };
 
 export const visitApi = {

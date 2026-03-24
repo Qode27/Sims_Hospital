@@ -278,7 +278,7 @@ router.delete(
       data: { active: false },
     });
 
-    res.json({ data: patient, message: "Patient archived" });
+    res.json({ data: patient, message: "Patient deleted" });
   }),
 );
 

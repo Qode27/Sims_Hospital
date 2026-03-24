@@ -95,9 +95,9 @@ nano frontend/.env.production
 Recommended production values:
 
 ```env
-VITE_APP_BASE_PATH=/hms/
-VITE_API_BASE_URL=https://www.kansalt.com/hms/api
-VITE_UPLOAD_BASE_URL=https://www.kansalt.com/hms
+VITE_APP_BASE_PATH=/sims/
+VITE_API_BASE_URL=https://www.kansalt.com/sims/api
+VITE_UPLOAD_BASE_URL=https://www.kansalt.com/sims
 ```
 
 If testing by IP only:
@@ -167,7 +167,7 @@ This config serves:
 - backend API through `/api/`
 - backend uploads through `/uploads/`
 
-For `www.kansalt.com/hms`, use the ready-made domain template:
+For `www.kansalt.com/sims`, use the ready-made domain template:
 
 ```bash
 cp /var/www/sims-hospital/deployment/nginx/sims-hospital.domain.conf /etc/nginx/sites-available/sims-hospital
@@ -179,16 +179,16 @@ systemctl restart nginx
 
 That config:
 
-- redirects `/` to `/hms/`
-- redirects `/hms` to `/hms/`
-- serves the frontend under `/hms/`
-- proxies the API through `/hms/api/`
-- proxies uploads through `/hms/uploads/`
+- redirects `/` to `/sims/`
+- redirects `/sims` to `/sims/`
+- serves the frontend under `/sims/`
+- proxies the API through `/sims/api/`
+- proxies uploads through `/sims/uploads/`
 
 The deployment script renders this template automatically for the live domain:
 
 ```bash
-APP_BRANCH=main APP_DOMAIN=www.kansalt.com APP_BASE_PATH=/hms/ ./deployment/scripts/deploy-vps.sh
+APP_BRANCH=main APP_DOMAIN=www.kansalt.com APP_BASE_PATH=/sims/ ./deployment/scripts/deploy-vps.sh
 ```
 
 For a different domain, update:
@@ -247,7 +247,7 @@ Workflow behavior on push to `main`:
 Current production workflow values:
 
 ```bash
-APP_BRANCH=main APP_DOMAIN=www.kansalt.com APP_BASE_PATH=/hms/ ./deployment/scripts/deploy-vps.sh
+APP_BRANCH=main APP_DOMAIN=www.kansalt.com APP_BASE_PATH=/sims/ ./deployment/scripts/deploy-vps.sh
 ```
 
 ## 12. Verification Commands
@@ -288,8 +288,8 @@ curl -I http://147.93.104.13/api/auth/me
 After SSL:
 
 ```bash
-curl -I https://www.kansalt.com/hms/
-curl -I https://www.kansalt.com/hms/api/auth/me
+curl -I https://www.kansalt.com/sims/
+curl -I https://www.kansalt.com/sims/api/auth/me
 ```
 
 ## 13. Notes

@@ -101,14 +101,14 @@ export const PatientsPage = () => {
     }
   };
 
-  const onArchive = async (id: number) => {
-    if (!confirm("Archive this patient?")) {
+  const onDelete = async (id: number) => {
+    if (!confirm("Delete this patient?")) {
       return;
     }
 
     try {
-      await patientApi.archive(id);
-      toast.success("Patient archived");
+      await patientApi.remove(id);
+      toast.success("Patient deleted");
       await load(page, search);
     } catch (error) {
       toast.error(getErrorMessage(error));
@@ -270,8 +270,8 @@ export const PatientsPage = () => {
                             <Button variant="ghost" className="h-8 px-3 py-1 text-xs" onClick={() => startEdit(row)}>
                               Edit
                             </Button>
-                            <Button variant="danger" className="h-8 px-3 py-1 text-xs" onClick={() => onArchive(row.id)}>
-                              Archive
+                            <Button variant="danger" className="h-8 px-3 py-1 text-xs" onClick={() => onDelete(row.id)}>
+                              Delete
                             </Button>
                           </>
                         ) : null}

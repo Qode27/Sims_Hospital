@@ -12,12 +12,12 @@ import { formatCurrency, formatDateTime } from "../utils/format";
 import { getErrorMessage } from "../api/client";
 
 const widgetCards = [
-  { key: "todayOpdPatients", label: "Today's OPD Patients", icon: <BriefcaseMedical size={18} /> },
-  { key: "currentIpdAdmissions", label: "IPD Admissions", icon: <BedDouble size={18} /> },
-  { key: "todayRevenue", label: "Today's Revenue", icon: <CircleDollarSign size={18} /> },
-  { key: "doctorsAvailable", label: "Doctors Available", icon: <Stethoscope size={18} /> },
-  { key: "appointments", label: "Appointments", icon: <CalendarRange size={18} /> },
-  { key: "bedOccupancyRate", label: "Bed Occupancy", icon: <BedDouble size={18} /> },
+  { key: "todayOpdPatients", label: "Today's OPD Patients", icon: <BriefcaseMedical size={18} />, to: "/visits" },
+  { key: "currentIpdAdmissions", label: "IPD Admissions", icon: <BedDouble size={18} />, to: "/ipd?status=ADMITTED" },
+  { key: "todayRevenue", label: "Today's Revenue", icon: <CircleDollarSign size={18} />, to: "/invoices" },
+  { key: "doctorsAvailable", label: "Doctors Available", icon: <Stethoscope size={18} />, to: "/doctors" },
+  { key: "appointments", label: "Appointments", icon: <CalendarRange size={18} />, to: "/visits" },
+  { key: "bedOccupancyRate", label: "Bed Occupancy", icon: <BedDouble size={18} />, to: "/ipd" },
 ] as const;
 
 export const DashboardPage = () => {
@@ -92,20 +92,22 @@ export const DashboardPage = () => {
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         {topWidgetRows.map((widget) => (
-          <Card key={widget.key} className="rounded-[28px] border border-white/60 bg-white/90 shadow-lg shadow-slate-200/60">
-            <div className="flex items-start justify-between">
-              <div className="rounded-2xl bg-cyan-50 p-3 text-cyan-700">{widget.icon}</div>
-              <span className="text-xs uppercase tracking-[0.24em] text-slate-400">Live</span>
-            </div>
-            <p className="mt-5 text-sm text-slate-500">{widget.label}</p>
-            <p className="mt-2 text-3xl font-semibold text-slate-900">
-              {widget.key === "todayRevenue"
-                ? formatCurrency(Number(widget.value))
-                : widget.key === "bedOccupancyRate"
-                  ? `${widget.value}%`
-                  : widget.value}
-            </p>
-          </Card>
+          <Link key={widget.key} to={widget.to} className="block">
+            <Card className="rounded-[28px] border border-white/60 bg-white/90 shadow-lg shadow-slate-200/60 transition hover:-translate-y-0.5 hover:shadow-xl hover:shadow-slate-200/80">
+              <div className="flex items-start justify-between">
+                <div className="rounded-2xl bg-cyan-50 p-3 text-cyan-700">{widget.icon}</div>
+                <span className="text-xs uppercase tracking-[0.24em] text-slate-400">Live</span>
+              </div>
+              <p className="mt-5 text-sm text-slate-500">{widget.label}</p>
+              <p className="mt-2 text-3xl font-semibold text-slate-900">
+                {widget.key === "todayRevenue"
+                  ? formatCurrency(Number(widget.value))
+                  : widget.key === "bedOccupancyRate"
+                    ? `${widget.value}%`
+                    : widget.value}
+              </p>
+            </Card>
+          </Link>
         ))}
       </section>
 

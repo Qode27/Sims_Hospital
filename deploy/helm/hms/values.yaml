@@ -39,6 +39,11 @@ frontend:
 backend:
   enabled: true
   replicaCount: 1
+  strategy:
+    type: Recreate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
   image:
     repository: ghcr.io/kansalt-com/sims-hospital-backend
     tag: latest-dev
@@ -50,7 +55,7 @@ backend:
     nodeEnv: production
     port: "4000"
     databaseUrl: file:/app/data/sims-dev.db
-    corsOrigin: https://dev.kansalt.com
+    corsOrigin: https://kansalt.dev.com
     uploadDirPath: /app/uploads
     uploadUrlPath: uploads
     logDir: /app/logs
@@ -98,14 +103,14 @@ ingress:
   annotations:
     nginx.ingress.kubernetes.io/proxy-body-size: 10m
   hosts:
-    - host: dev.kansalt.com
+    - host: kansalt.dev.com
       frontendPaths:
-        - path: /
+        - path: /sims
           pathType: Prefix
       backendPaths:
-        - path: /api
+        - path: /sims/api
           pathType: Prefix
-        - path: /uploads
+        - path: /sims/uploads
           pathType: Prefix
   tls: []
 

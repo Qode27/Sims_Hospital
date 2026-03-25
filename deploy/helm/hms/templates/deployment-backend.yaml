@@ -9,10 +9,12 @@ spec:
   replicas: {{ .Values.backend.replicaCount }}
   revisionHistoryLimit: 5
   strategy:
-    type: RollingUpdate
+    type: {{ .Values.backend.strategy.type }}
+    {{- if eq .Values.backend.strategy.type "RollingUpdate" }}
     rollingUpdate:
-      maxUnavailable: 0
-      maxSurge: 1
+      maxUnavailable: {{ .Values.backend.strategy.rollingUpdate.maxUnavailable }}
+      maxSurge: {{ .Values.backend.strategy.rollingUpdate.maxSurge }}
+    {{- end }}
   selector:
     matchLabels:
       {{- include "hms.selectorLabels" . | nindent 6 }}

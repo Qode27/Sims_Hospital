@@ -68,6 +68,12 @@ cd ..\frontend
 npm run build
 ```
 
+For VPS deployment under `https://www.kansalt.com/sims/`, use:
+
+```bash
+APP_BRANCH=main APP_DOMAIN=www.kansalt.com APP_BASE_PATH=/sims/ ./deployment/scripts/deploy-vps.sh
+```
+
 Container build:
 
 ```powershell
